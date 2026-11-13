@@ -1,0 +1,51 @@
+package com.example.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Royal Blue Theme Palette
+val RoyalBluePrimary = Color(0xFF1A47B8)
+val RoyalBlueOnPrimary = Color(0xFFFFFFFF)
+val RoyalBluePrimaryContainer = Color(0xFFDCE6FF)
+val RoyalBlueOnPrimaryContainer = Color(0xFF0A2463)
+val RoyalBlueSecondary = Color(0xFFD97706)
+val RoyalBlueOnSecondary = Color(0xFFFFFFFF)
+val RoyalBlueSecondaryContainer = Color(0xFFFEF3C7)
+val RoyalBlueOnSecondaryContainer = Color(0xFF78350F)
+val RoyalBlueBackground = Color(0xFFF5F7FC)
+val RoyalBlueSurface = Color(0xFFFFFFFF)
+val RoyalBlueSurfaceVariant = Color(0xFFE7EDF9)
+val RoyalBlueOnSurface = Color(0xFF111827)
+val RoyalBlueOnSurfaceVariant = Color(0xFF4B5563)
+val RoyalBlueOutline = Color(0xFFD1D9E8)
+
+// Emerald Green Theme Palette
+val EmeraldPrimary = Color(0xFF0C7C59)
+val EmeraldOnPrimary = Color(0xFFFFFFFF)
+val EmeraldPrimaryContainer = Color(0xFFD1FAE5)
+val EmeraldOnPrimaryContainer = Color(0xFF064E3B)
+val EmeraldSecondary = Color(0xFFCA8A04)
+val EmeraldOnSecondary = Color(0xFFFFFFFF)
+val EmeraldSecondaryContainer = Color(0xFFFEF9C3)
+val EmeraldOnSecondaryContainer = Color(0xFF713F12)
+val EmeraldBackground = Color(0xFFF2FAF6)
+val EmeraldSurface = Color(0xFFFFFFFF)
+val EmeraldSurfaceVariant = Color(0xFFE0F2EA)
+val EmeraldOnSurface = Color(0xFF0F1F18)
+val EmeraldOnSurfaceVariant = Color(0xFF3F5B4F)
+val EmeraldOutline = Color(0xFFC7E2D6)
+
+// Dark Mode Palette
+val DarkPrimary = Color(0xFF60A5FA)
+val DarkOnPrimary = Color(0xFF0A1936)
+val DarkPrimaryContainer = Color(0xFF1E3A8A)
+val DarkOnPrimaryContainer = Color(0xFFDBEAFE)
+val DarkSecondary = Color(0xFFFBBF24)
+val DarkOnSecondary = Color(0xFF3B2200)
+val DarkSecondaryContainer = Color(0xFF451A03)
+val DarkOnSecondaryContainer = Color(0xFFFDE68A)
+val DarkBackground = Color(0xFF0B1220)
+val DarkSurface = Color(0xFF151F32)
+val DarkSurfaceVariant = Color(0xFF1E293B)
+val DarkOnSurface = Color(0xFFF1F5F9)
+val DarkOnSurfaceVariant = Color(0xFF94A3B8)
+val DarkOutline = Color(0xFF334155)

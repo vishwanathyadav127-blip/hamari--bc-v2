@@ -1,0 +1,367 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+        ('email_verified' in request.auth.token) &&
+        request.auth.token.email_verified == true &&
+        ('email' in request.auth.token) &&
+        request.auth.token.email is string &&
+        request.auth.token.email.lower() == 'vishwanathyadav127@gmail.com';
+    }
+
+    function isValidMemberUidList(list) {
+      return list is list && list.size() >= 1 && list.size() <= 50 && list[0] is string;
+    }
+
+    function isCommitteeMember(committeeId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/committees/$(committeeId)) &&
+        (request.auth.uid in get(/databases/$(database)/documents/committees/$(committeeId)).data.memberUids ||
+         get(/databases/$(database)/documents/committees/$(committeeId)).data.adminUid == request.auth.uid);
+    }
+
+    function isCommitteeAdmin(committeeId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/committees/$(committeeId)) &&
+        (get(/databases/$(database)/documents/committees/$(committeeId)).data.adminUid == request.auth.uid ||
+         isBootstrappedAdmin());
+    }
+
+    // 3. Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'mobileNumber', 'email', 'activeCommitteeId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'displayName', 'mobileNumber', 'email', 'activeCommitteeId', 'createdAt', 'updatedAt']) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+        data.mobileNumber is string && data.mobileNumber.size() <= 20 &&
+        data.email is string && data.email.size() <= 120 &&
+        data.activeCommitteeId is string && data.activeCommitteeId.size() <= 128 &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidInviteCode(data) {
+      return data.keys().hasAll(['committeeId', 'committeeName', 'adminUid', 'createdAt']) &&
+        data.keys().hasOnly(['committeeId', 'committeeName', 'adminUid', 'createdAt']) &&
+        isValidId(data.committeeId) &&
+        data.committeeName is string && data.committeeName.size() >= 1 && data.committeeName.size() <= 80 &&
+        data.adminUid is string && data.adminUid.size() >= 1 && data.adminUid.size() <= 128 &&
+        data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCommittee(data) {
+      return data.keys().hasAll([
+        'name', 'adminUid', 'adminEmail', 'inviteCode', 'memberUids',
+        'totalBcAmount', 'totalMembers', 'timerMinutes', 'scheduledAtMillis',
+        'isLive', 'biddingStartedAtMillis', 'biddingEndsAtMillis',
+        'currentHighestBid', 'currentHighestBidderUid', 'currentHighestBidderName', 'currentHighestBidderMobile',
+        'roundNumber', 'winnerDeclared', 'winnerName', 'winnerUid', 'winnerMobile',
+        'winningBid', 'netPayableToWinner', 'perMemberInstallment',
+        'winnerSloganTemplate', 'apkDownloadUrl', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'name', 'adminUid', 'adminEmail', 'inviteCode', 'memberUids',
+        'totalBcAmount', 'totalMembers', 'timerMinutes', 'scheduledAtMillis',
+        'isLive', 'biddingStartedAtMillis', 'biddingEndsAtMillis',
+        'currentHighestBid', 'currentHighestBidderUid', 'currentHighestBidderName', 'currentHighestBidderMobile',
+        'roundNumber', 'winnerDeclared', 'winnerName', 'winnerUid', 'winnerMobile',
+        'winningBid', 'netPayableToWinner', 'perMemberInstallment',
+        'winnerSloganTemplate', 'apkDownloadUrl', 'createdAt', 'updatedAt'
+      ]) &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+      data.adminUid is string && data.adminUid.size() >= 1 && data.adminUid.size() <= 128 &&
+      data.adminEmail is string && data.adminEmail.size() <= 120 &&
+      data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 16 &&
+      isValidMemberUidList(data.memberUids) &&
+      data.adminUid in data.memberUids &&
+      data.totalBcAmount is int && data.totalBcAmount >= 1000 && data.totalBcAmount <= 100000000 &&
+      data.totalMembers is int && data.totalMembers >= 2 && data.totalMembers <= 50 &&
+      data.timerMinutes is int && data.timerMinutes >= 1 && data.timerMinutes <= 180 &&
+      data.scheduledAtMillis is int && data.scheduledAtMillis >= 0 &&
+      data.isLive is bool &&
+      data.biddingStartedAtMillis is int && data.biddingStartedAtMillis >= 0 &&
+      data.biddingEndsAtMillis is int && data.biddingEndsAtMillis >= 0 &&
+      data.currentHighestBid is int && data.currentHighestBid >= 0 && data.currentHighestBid <= data.totalBcAmount &&
+      data.currentHighestBidderUid is string && data.currentHighestBidderUid.size() <= 128 &&
+      data.currentHighestBidderName is string && data.currentHighestBidderName.size() <= 60 &&
+      data.currentHighestBidderMobile is string && data.currentHighestBidderMobile.size() <= 20 &&
+      data.roundNumber is int && data.roundNumber >= 1 && data.roundNumber <= 100 &&
+      data.winnerDeclared is bool &&
+      data.winnerName is string && data.winnerName.size() <= 60 &&
+      data.winnerUid is string && data.winnerUid.size() <= 128 &&
+      data.winnerMobile is string && data.winnerMobile.size() <= 20 &&
+      data.winningBid is int && data.winningBid >= 0 && data.winningBid <= data.totalBcAmount &&
+      data.netPayableToWinner is int && data.netPayableToWinner >= 0 &&
+      data.perMemberInstallment is int && data.perMemberInstallment >= 0 &&
+      data.winnerSloganTemplate is string && data.winnerSloganTemplate.size() >= 1 && data.winnerSloganTemplate.size() <= 300 &&
+      data.apkDownloadUrl is string && data.apkDownloadUrl.size() <= 500 &&
+      data.createdAt is timestamp && data.createdAt <= request.time &&
+      data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCommitteeMember(data) {
+      return data.keys().hasAll([
+        'committeeId', 'adminUid', 'linkedUid', 'name', 'mobileNumber',
+        'currentInstallmentStatus', 'paidRounds', 'hasWonRound', 'memberUids',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'committeeId', 'adminUid', 'linkedUid', 'name', 'mobileNumber',
+        'currentInstallmentStatus', 'paidRounds', 'hasWonRound', 'memberUids',
+        'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.committeeId) &&
+      data.adminUid is string && data.adminUid.size() >= 1 && data.adminUid.size() <= 128 &&
+      data.linkedUid is string && data.linkedUid.size() <= 128 &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+      data.mobileNumber is string && data.mobileNumber.size() <= 20 &&
+      data.currentInstallmentStatus in ['pending', 'paid'] &&
+      data.paidRounds is list && data.paidRounds.size() <= 60 && (data.paidRounds.size() == 0 || data.paidRounds[0] is int) &&
+      data.hasWonRound is int && data.hasWonRound >= 0 && data.hasWonRound <= 100 &&
+      isValidMemberUidList(data.memberUids) &&
+      data.createdAt is timestamp && data.createdAt <= request.time &&
+      data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidBidMessage(data) {
+      return data.keys().hasAll([
+        'committeeId', 'roundNumber', 'senderUid', 'senderName', 'senderMobile',
+        'type', 'amount', 'message', 'memberUids', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'committeeId', 'roundNumber', 'senderUid', 'senderName', 'senderMobile',
+        'type', 'amount', 'message', 'memberUids', 'createdAt'
+      ]) &&
+      isValidId(data.committeeId) &&
+      data.roundNumber is int && data.roundNumber >= 1 && data.roundNumber <= 100 &&
+      data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+      data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
+      data.senderMobile is string && data.senderMobile.size() <= 20 &&
+      data.type in ['bid', 'chat', 'system'] &&
+      data.amount is int && data.amount >= 0 && data.amount <= 100000000 &&
+      data.message is string && data.message.size() <= 500 &&
+      isValidMemberUidList(data.memberUids) &&
+      data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidRoundRecord(data) {
+      return data.keys().hasAll([
+        'committeeId', 'roundNumber', 'totalBcAmount', 'totalMembers',
+        'winnerUid', 'winnerName', 'winnerMobile', 'winningBid',
+        'netPayableToWinner', 'perMemberInstallment', 'sloganText',
+        'memberUids', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'committeeId', 'roundNumber', 'totalBcAmount', 'totalMembers',
+        'winnerUid', 'winnerName', 'winnerMobile', 'winningBid',
+        'netPayableToWinner', 'perMemberInstallment', 'sloganText',
+        'memberUids', 'createdAt'
+      ]) &&
+      isValidId(data.committeeId) &&
+      data.roundNumber is int && data.roundNumber >= 1 && data.roundNumber <= 100 &&
+      data.totalBcAmount is int && data.totalBcAmount >= 1000 &&
+      data.totalMembers is int && data.totalMembers >= 2 && data.totalMembers <= 50 &&
+      data.winnerUid is string && data.winnerUid.size() <= 128 &&
+      data.winnerName is string && data.winnerName.size() >= 1 && data.winnerName.size() <= 60 &&
+      data.winnerMobile is string && data.winnerMobile.size() <= 20 &&
+      data.winningBid is int && data.winningBid >= 0 &&
+      data.netPayableToWinner is int && data.netPayableToWinner >= 0 &&
+      data.perMemberInstallment is int && data.perMemberInstallment >= 0 &&
+      data.sloganText is string && data.sloganText.size() >= 1 && data.sloganText.size() <= 400 &&
+      isValidMemberUidList(data.memberUids) &&
+      data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        request.auth.uid == userId &&
+        incoming().userId == request.auth.uid &&
+        isValidUserProfile(incoming());
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        request.auth.uid == userId &&
+        isValidUserProfile(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'mobileNumber', 'email', 'activeCommitteeId', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    match /invites/{inviteCode} {
+      allow get: if isSignedIn() && isValidId(inviteCode);
+      allow list: if false;
+      allow create: if isSignedIn() &&
+        isValidId(inviteCode) &&
+        isValidInviteCode(incoming()) &&
+        incoming().adminUid == request.auth.uid;
+      allow update: if isSignedIn() &&
+        isValidId(inviteCode) &&
+        isValidInviteCode(incoming()) &&
+        existing().adminUid == request.auth.uid &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['committeeId', 'committeeName']);
+      allow delete: if isSignedIn() && isValidId(inviteCode) && existing().adminUid == request.auth.uid;
+    }
+
+    match /committees/{committeeId} {
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+      allow get: if isSignedIn() && isValidId(committeeId) &&
+        (request.auth.uid in resource.data.memberUids || resource.data.adminUid == request.auth.uid);
+      allow create: if isSignedIn() &&
+        isValidId(committeeId) &&
+        isValidCommittee(incoming()) &&
+        incoming().adminUid == request.auth.uid &&
+        request.auth.uid in incoming().memberUids;
+      allow update: if isSignedIn() &&
+        isValidId(committeeId) &&
+        isValidCommittee(incoming()) &&
+        incoming().adminUid == existing().adminUid &&
+        incoming().createdAt == existing().createdAt && (
+          // Action 1: Committee Admin or Bootstrapped Admin full configuration & round management
+          ((existing().adminUid == request.auth.uid || isBootstrappedAdmin()) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'adminEmail', 'inviteCode', 'memberUids',
+              'totalBcAmount', 'totalMembers', 'timerMinutes', 'scheduledAtMillis',
+              'isLive', 'biddingStartedAtMillis', 'biddingEndsAtMillis',
+              'currentHighestBid', 'currentHighestBidderUid', 'currentHighestBidderName', 'currentHighestBidderMobile',
+              'roundNumber', 'winnerDeclared', 'winnerName', 'winnerUid', 'winnerMobile',
+              'winningBid', 'netPayableToWinner', 'perMemberInstallment',
+              'winnerSloganTemplate', 'apkDownloadUrl', 'updatedAt'
+            ])) ||
+          // Action 2: Authenticated user joins committee via invite code (adds ONLY self to memberUids)
+          (!(request.auth.uid in existing().memberUids) &&
+            request.auth.uid in incoming().memberUids &&
+            incoming().memberUids.hasAll(existing().memberUids) &&
+            incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])) ||
+          // Action 3: Committee member places a higher bid while room is LIVE
+          (request.auth.uid in existing().memberUids &&
+            existing().isLive == true &&
+            incoming().currentHighestBid > existing().currentHighestBid &&
+            incoming().currentHighestBidderUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'currentHighestBid', 'currentHighestBidderUid', 'currentHighestBidderName', 'currentHighestBidderMobile', 'updatedAt'
+            ])) ||
+          // Action 4a: Scheduled Auto-Start unlock by any committee member when schedule is active
+          (request.auth.uid in existing().memberUids &&
+            existing().isLive == false &&
+            existing().scheduledAtMillis > 0 &&
+            incoming().isLive == true &&
+            incoming().scheduledAtMillis == 0 &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'isLive', 'biddingStartedAtMillis', 'biddingEndsAtMillis', 'scheduledAtMillis', 'winnerDeclared', 'updatedAt'
+            ])) ||
+          // Action 4b: Timer Expiry Auto-Lock & Winner Declaration by member
+          (request.auth.uid in existing().memberUids &&
+            existing().isLive == true &&
+            incoming().isLive == false &&
+            incoming().winnerDeclared == true &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'isLive', 'biddingEndsAtMillis', 'winnerDeclared',
+              'winnerName', 'winnerUid', 'winnerMobile',
+              'winningBid', 'netPayableToWinner', 'perMemberInstallment', 'updatedAt'
+            ]))
+        );
+      allow delete: if isSignedIn() && isValidId(committeeId) && existing().adminUid == request.auth.uid;
+
+      match /members/{memberId} {
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+        allow get: if isSignedIn() && isValidId(memberId) &&
+          (request.auth.uid in resource.data.memberUids || isCommitteeMember(committeeId));
+        allow create: if isSignedIn() &&
+          isValidId(memberId) &&
+          isValidCommitteeMember(incoming()) &&
+          incoming().committeeId == committeeId &&
+          isCommitteeMember(committeeId) &&
+          request.auth.uid in incoming().memberUids &&
+          (incoming().adminUid == request.auth.uid || incoming().linkedUid == request.auth.uid);
+        allow update: if isSignedIn() &&
+          isValidId(memberId) &&
+          isValidCommitteeMember(incoming()) &&
+          incoming().committeeId == existing().committeeId &&
+          incoming().adminUid == existing().adminUid &&
+          incoming().createdAt == existing().createdAt && (
+            ((existing().adminUid == request.auth.uid || isBootstrappedAdmin()) &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'linkedUid', 'name', 'mobileNumber', 'currentInstallmentStatus',
+                'paidRounds', 'hasWonRound', 'memberUids', 'updatedAt'
+              ])) ||
+            (existing().linkedUid == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'name', 'mobileNumber', 'currentInstallmentStatus', 'paidRounds', 'updatedAt'
+              ])) ||
+            (request.auth.uid in existing().memberUids &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'currentInstallmentStatus', 'paidRounds', 'hasWonRound', 'updatedAt'
+              ]))
+          );
+        allow delete: if isSignedIn() && isValidId(memberId) &&
+          (existing().adminUid == request.auth.uid || isBootstrappedAdmin());
+      }
+
+      match /bids/{bidId} {
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+        allow get: if isSignedIn() && isValidId(bidId) &&
+          (request.auth.uid in resource.data.memberUids || isCommitteeMember(committeeId));
+        allow create: if isSignedIn() &&
+          isValidId(bidId) &&
+          isValidBidMessage(incoming()) &&
+          incoming().committeeId == committeeId &&
+          incoming().senderUid == request.auth.uid &&
+          request.auth.uid in incoming().memberUids &&
+          isCommitteeMember(committeeId);
+        allow update: if isSignedIn() &&
+          isValidId(bidId) &&
+          isValidBidMessage(incoming()) &&
+          isCommitteeAdmin(committeeId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids']);
+        allow delete: if false;
+      }
+
+      match /rounds/{roundId} {
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+        allow get: if isSignedIn() && isValidId(roundId) &&
+          (request.auth.uid in resource.data.memberUids || isCommitteeMember(committeeId));
+        allow create: if isSignedIn() &&
+          isValidId(roundId) &&
+          isValidRoundRecord(incoming()) &&
+          incoming().committeeId == committeeId &&
+          request.auth.uid in incoming().memberUids &&
+          isCommitteeMember(committeeId);
+        allow update: if isSignedIn() &&
+          isValidId(roundId) &&
+          isValidRoundRecord(incoming()) &&
+          isCommitteeAdmin(committeeId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids']);
+        allow delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile storing display name, mobile number, and active BC committee reference.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "displayName": { "type": "string", "description": "Member display name." },
+        "mobileNumber": { "type": "string", "description": "Member mobile number for bidding and installment display." },
+        "email": { "type": "string", "description": "Google account email." },
+        "activeCommitteeId": { "type": "string", "description": "Currently selected committee document ID." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "mobileNumber", "email", "activeCommitteeId", "createdAt", "updatedAt"]
+    },
+    "InviteCode": {
+      "title": "InviteCode",
+      "description": "Lookup document mapping a short invite code to a BC committee ID.",
+      "type": "object",
+      "properties": {
+        "committeeId": { "type": "string", "description": "Target committee document ID." },
+        "committeeName": { "type": "string", "description": "Committee display name." },
+        "adminUid": { "type": "string", "description": "Admin UID who created the invite." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["committeeId", "committeeName", "adminUid", "createdAt"]
+    },
+    "Committee": {
+      "title": "Committee",
+      "description": "BC Committee configuration, live bidding state, schedule, and latest winner breakdown.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "adminUid": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "memberUids": { "type": "array", "description": "Bounded list (<=50) of participating Auth UIDs." },
+        "totalBcAmount": { "type": "integer" },
+        "totalMembers": { "type": "integer" },
+        "timerMinutes": { "type": "integer" },
+        "scheduledAtMillis": { "type": "integer" },
+        "isLive": { "type": "boolean" },
+        "biddingStartedAtMillis": { "type": "integer" },
+        "biddingEndsAtMillis": { "type": "integer" },
+        "currentHighestBid": { "type": "integer" },
+        "currentHighestBidderUid": { "type": "string" },
+        "currentHighestBidderName": { "type": "string" },
+        "currentHighestBidderMobile": { "type": "string" },
+        "roundNumber": { "type": "integer" },
+        "winnerDeclared": { "type": "boolean" },
+        "winnerName": { "type": "string" },
+        "winnerUid": { "type": "string" },
+        "winnerMobile": { "type": "string" },
+        "winningBid": { "type": "integer" },
+        "netPayableToWinner": { "type": "integer" },
+        "perMemberInstallment": { "type": "integer" },
+        "winnerSloganTemplate": { "type": "string" },
+        "apkDownloadUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "name", "adminUid", "adminEmail", "inviteCode", "memberUids",
+        "totalBcAmount", "totalMembers", "timerMinutes", "scheduledAtMillis",
+        "isLive", "biddingStartedAtMillis", "biddingEndsAtMillis",
+        "currentHighestBid", "currentHighestBidderUid", "currentHighestBidderName", "currentHighestBidderMobile",
+        "roundNumber", "winnerDeclared", "winnerName", "winnerUid", "winnerMobile",
+        "winningBid", "netPayableToWinner", "perMemberInstallment",
+        "winnerSloganTemplate", "apkDownloadUrl", "createdAt", "updatedAt"
+      ]
+    },
+    "CommitteeMember": {
+      "title": "CommitteeMember",
+      "description": "A member participating in the BC committee and their installment status.",
+      "type": "object",
+      "properties": {
+        "committeeId": { "type": "string" },
+        "adminUid": { "type": "string" },
+        "linkedUid": { "type": "string" },
+        "name": { "type": "string" },
+        "mobileNumber": { "type": "string" },
+        "currentInstallmentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "paidRounds": { "type": "array" },
+        "hasWonRound": { "type": "integer" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "committeeId", "adminUid", "linkedUid", "name", "mobileNumber",
+        "currentInstallmentStatus", "paidRounds", "hasWonRound", "memberUids",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "BidMessage": {
+      "title": "BidMessage",
+      "description": "WhatsApp-style live bidding or group chat entry inside a committee.",
+      "type": "object",
+      "properties": {
+        "committeeId": { "type": "string" },
+        "roundNumber": { "type": "integer" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderMobile": { "type": "string" },
+        "type": { "type": "string", "enum": ["bid", "chat", "system"] },
+        "amount": { "type": "integer" },
+        "message": { "type": "string" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "committeeId", "roundNumber", "senderUid", "senderName", "senderMobile",
+        "type", "amount", "message", "memberUids", "createdAt"
+      ]
+    },
+    "RoundRecord": {
+      "title": "RoundRecord",
+      "description": "Completed BC auction round summary with winner and auto-calculated breakdown.",
+      "type": "object",
+      "properties": {
+        "committeeId": { "type": "string" },
+        "roundNumber": { "type": "integer" },
+        "totalBcAmount": { "type": "integer" },
+        "totalMembers": { "type": "integer" },
+        "winnerUid": { "type": "string" },
+        "winnerName": { "type": "string" },
+        "winnerMobile": { "type": "string" },
+        "winningBid": { "type": "integer" },
+        "netPayableToWinner": { "type": "integer" },
+        "perMemberInstallment": { "type": "integer" },
+        "sloganText": { "type": "string" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "committeeId", "roundNumber", "totalBcAmount", "totalMembers",
+        "winnerUid", "winnerName", "winnerMobile", "winningBid",
+        "netPayableToWinner", "perMemberInstallment", "sloganText",
+        "memberUids", "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile and active committee pointer."
+    },
+    "/invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/InviteCode" },
+      "description": "Invite code lookup mapping to a committee."
+    },
+    "/committees/{committeeId}": {
+      "schema": { "$ref": "#/entities/Committee" },
+      "description": "Shared BC committee state, live timer, and latest winner breakdown."
+    },
+    "/committees/{committeeId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/CommitteeMember" },
+      "description": "Roster of committee members and their installment payment statuses."
+    },
+    "/committees/{committeeId}/bids/{bidId}": {
+      "schema": { "$ref": "#/entities/BidMessage" },
+      "description": "Immutable stream of live bids and chat bubbles."
+    },
+    "/committees/{committeeId}/rounds/{roundId}": {
+      "schema": { "$ref": "#/entities/RoundRecord" },
+      "description": "History of declared BC round winners and financial breakdowns."
+    }
+  }
+}

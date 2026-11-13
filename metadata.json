@@ -1,0 +1,6 @@
+{
+  "name": "Hamari BC",
+  "description": "Hamari BC Committee: Hindi/Hinglish live bidding room, automatic winner & installment calculator, scheduled siren alerts, and WhatsApp sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
