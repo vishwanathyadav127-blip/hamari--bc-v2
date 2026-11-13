@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "915957614688",
+    "project_id": "hamari-bc-committee",
+    "storage_bucket": "hamari-bc-committee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915957614688:android:9498ad6cbd2d1d3676db05",
+        "android_client_info": {
+          "package_name": "com.aistudio.bccommittee.mkyrzt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXvXffcMeryFylJ2fE1NMiVCO13HZbmso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915957614688:android:703ce8c4131adadc76db05",
+        "android_client_info": {
+          "package_name": "com.aistudio.bccommittee.vhkqxm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXvXffcMeryFylJ2fE1NMiVCO13HZbmso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
