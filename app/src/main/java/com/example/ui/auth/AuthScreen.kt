@@ -1,5 +1,5 @@
 package com.example.ui.auth
-import com.aistudio.bccommittee.vhkqxrm.R
+import com.example.R
 
 
 import android.app.Activity
