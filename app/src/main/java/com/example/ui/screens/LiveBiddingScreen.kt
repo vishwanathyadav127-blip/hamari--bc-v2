@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -84,7 +83,6 @@ fun LiveBiddingScreen(
             .fillMaxSize()
             .background(extra.whatsappBg)
     ) {
-        // WhatsApp-Style Clean Header with Live Timer INSIDE Group Icon
         Surface(
             color = extra.whatsappHeaderBg,
             shadowElevation = 4.dp,
@@ -107,7 +105,6 @@ fun LiveBiddingScreen(
                         )
                     }
 
-                    // Group Icon with Live Countdown Timer Inside
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -173,7 +170,6 @@ fun LiveBiddingScreen(
                         )
                     }
 
-                    // Admin Stop Button during Live Bidding
                     if (isAdmin && committee.isLive) {
                         Button(
                             onClick = onEndAndDeclareWinner,
@@ -194,7 +190,6 @@ fun LiveBiddingScreen(
                     }
                 }
 
-                // Compact Highest Bid Strip (Only shown during Live Bidding)
                 if (committee.isLive) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.25f),
@@ -233,7 +228,6 @@ fun LiveBiddingScreen(
             }
         }
 
-        // Open, Uncluttered WhatsApp-Style Chat & Bid Stream
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -242,10 +236,9 @@ fun LiveBiddingScreen(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Post-Bidding Automatic Calculation Card (Total Bid, Member Profit, Net Installment & Due Date)
             if (!committee.isLive && committee.currentHighestBid > 0L) {
                 item {
-                    val totalPool = committee.totalAmount
+                    val totalPool = committee.totalBcAmount
                     val highestBid = committee.currentHighestBid
                     val memberCount = committee.totalMembers.coerceAtLeast(1)
                     val perMemberDividend = highestBid / memberCount
@@ -318,7 +311,6 @@ fun LiveBiddingScreen(
                 }
             }
 
-            // Clean Empty Screen during Live Bidding (No distracting notices)
             items(roundBids, key = { it.id }) { msg ->
                 val isMine = msg.senderId == currentUserId
                 val timeStr = remember(msg.timestamp) {
@@ -384,7 +376,6 @@ fun LiveBiddingScreen(
             }
         }
 
-        // Bottom Action Bar
         Surface(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
@@ -399,7 +390,6 @@ fun LiveBiddingScreen(
                     modifier = Modifier.padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 1-Tap Quick Bid Chips
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -422,7 +412,6 @@ fun LiveBiddingScreen(
                         }
                     }
 
-                    // Bid Input & Place Bid Button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -430,4 +419,16 @@ fun LiveBiddingScreen(
                     ) {
                         OutlinedTextField(
                             value = bidAmountInput,
-                            onValueChange = { bidAmountInp
+                            onValueChange = { bidAmountInput = it.filter { ch -> ch.isDigit() } },
+                            label = { Text("बोली राशि (₹)") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("bid_amount_input")
+                        )
+                        Button(
+                            onClick = {
+                                val amt = bidAmountInput.toLongOrNull() ?: 0L
+                                if (amt > committee.currentHighestBid) {
+                                    onPlace
