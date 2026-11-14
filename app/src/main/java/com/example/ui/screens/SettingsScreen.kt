@@ -1,642 +1,397 @@
 package com.example.ui.screens
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.model.AppThemeMode
-import com.example.model.BcCalculator
 import com.example.model.Committee
 import com.example.model.UserProfile
-import com.example.ui.components.shareToWhatsApp
-import com.example.ui.theme.DarkPrimary
-import com.example.ui.theme.EmeraldPrimary
-import com.example.ui.theme.LocalBcExtraColors
-import com.example.ui.theme.RoyalBluePrimary
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-  themeMode: AppThemeMode,
-  soundEnabled: Boolean,
-  committee: Committee?,
-  userProfile: UserProfile?,
-  isAdmin: Boolean,
-  onSelectTheme: (AppThemeMode) -> Unit,
-  onToggleSound: (Boolean) -> Unit,
-  onTestSiren: () -> Unit,
-  onSaveCommitteeSettings: (
-    name: String,
-    totalBcAmount: Long,
-    totalMembers: Long,
-    timerMinutes: Long,
-    scheduledAtMillis: Long,
-    sloganTemplate: String,
-    apkDownloadUrl: String
-  ) -> Unit,
-  onUpdateProfile: (name: String, mobile: String) -> Unit,
-  onSignOut: () -> Unit,
-  onBack: () -> Unit
+    themeMode: AppThemeMode,
+    soundEnabled: Boolean,
+    committee: Committee?,
+    userProfile: UserProfile?,
+    isAdmin: Boolean,
+    onSelectTheme: (AppThemeMode) -> Unit,
+    onToggleSound: (Boolean) -> Unit,
+    onTestSiren: () -> Unit,
+    onSaveCommitteeSettings: (
+        name: String,
+        totalBcAmount: Long,
+        totalMembers: Long,
+        timerMinutes: Long,
+        scheduledAtMillis: Long,
+        sloganTemplate: String,
+        apkDownloadUrl: String
+    ) -> Unit,
+    onUpdateProfile: (name: String, mobile: String) -> Unit,
+    onSignOut: () -> Unit,
+    onBack: () -> Unit
 ) {
-  BackHandler(onBack = onBack)
+    BackHandler(onBack = onBack)
 
-  val context = LocalContext.current
-  val extra = LocalBcExtraColors.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { Firebase.firestore }
 
-  var commName by remember(committee?.id, committee?.name) { mutableStateOf(committee?.name ?: "हमारी BC कमेटी") }
-  var totalAmountText by remember(committee?.id, committee?.totalBcAmount) {
-    mutableStateOf((committee?.totalBcAmount ?: 100_000L).toString())
-  }
-  var totalMembersText by remember(committee?.id, committee?.totalMembers) {
-    mutableStateOf((committee?.totalMembers ?: 10L).toString())
-  }
-  var timerMinutesText by remember(committee?.id, committee?.timerMinutes) {
-    mutableStateOf((committee?.timerMinutes ?: 5L).toString())
-  }
-  var scheduledMillis by remember(committee?.id, committee?.scheduledAtMillis) {
-    mutableLongStateOf(committee?.scheduledAtMillis ?: 0L)
-  }
-  var sloganTemplate by remember(committee?.id, committee?.winnerSloganTemplate) {
-    mutableStateOf(committee?.winnerSloganTemplate ?: Committee.DEFAULT_SLOGAN_TEMPLATE)
-  }
-  var apkDownloadUrl by remember(committee?.id, committee?.apkDownloadUrl) {
-    mutableStateOf(committee?.apkDownloadUrl ?: Committee.DEFAULT_APK_URL)
-  }
+    // User Profile States
+    var profileName by remember(userProfile) { mutableStateOf(userProfile?.name ?: "") }
+    var profileMobile by remember(userProfile) { mutableStateOf(userProfile?.mobile ?: "") }
 
-  var myName by remember(userProfile?.displayName) { mutableStateOf(userProfile?.displayName ?: "") }
-  var myMobile by remember(userProfile?.mobileNumber) { mutableStateOf(userProfile?.mobileNumber ?: "") }
+    // Admin: Add Approved Member States
+    var newMemberName by remember { mutableStateOf("") }
+    var newMemberMobile by remember { mutableStateOf("") }
+    var newMemberPin by remember { mutableStateOf("1234") }
+    var isSavingMember by remember { mutableStateOf(false) }
 
-  var showDatePicker by remember { mutableStateOf(false) }
-  var showTimePicker by remember { mutableStateOf(false) }
-  var pickedDateUtcMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // Admin: Due Date, Late Fine & Siren Ringtone States
+    var dueDayOfMonth by remember { mutableStateOf("10") }
+    var dailyLateFine by remember { mutableStateOf("100") }
+    var selectedToneName by remember { mutableStateOf("डिफ़ॉल्ट तेज़ सायरन अलर्ट") }
+    var isSavingRules by remember { mutableStateOf(false) }
 
-  val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
-
-  Scaffold(
-    topBar = {
-      TopAppBar(
-        title = {
-          Text(
-            text = "सेटिंग्स (Settings)",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-          )
-        },
-        navigationIcon = {
-          IconButton(onClick = onBack) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-              contentDescription = "वापस जाएं"
-            )
-          }
-        }
-      )
+    // Admin: Committee Basic Settings
+    var committeeName by remember(committee) { mutableStateOf(committee?.name ?: "कृषिव ग्रुप BC") }
+    var totalPoolText by remember(committee) {
+        mutableStateOf((committee?.totalAmount ?: 100000L).toString())
     }
-  ) { innerPadding ->
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background)
-        .padding(innerPadding),
-      contentAlignment = Alignment.TopCenter
-    ) {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .widthIn(max = 640.dp)
-          .verticalScroll(rememberScrollState())
-          .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-      ) {
-        // 1. Theme Switcher
-        Card(
-          shape = RoundedCornerShape(20.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-              Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-              Text(
-                text = "ऐप थीम चुनें (Theme Switcher)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-              )
-            }
+    var totalMembersText by remember(committee) {
+        mutableStateOf((committee?.totalMembers ?: 10).toString())
+    }
+    var timerMinutesText by remember(committee) {
+        mutableStateOf((committee?.timerMinutes ?: 5).toString())
+    }
 
-            AppThemeMode.entries.forEach { mode ->
-              val swatchColor = when (mode) {
-                AppThemeMode.ROYAL_BLUE -> RoyalBluePrimary
-                AppThemeMode.EMERALD_GREEN -> EmeraldPrimary
-                AppThemeMode.DARK_MODE -> DarkPrimary
-              }
-              val selected = mode == themeMode
-              Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clickable { onSelectTheme(mode) }
-                  .testTag("theme_option_${mode.storageKey}")
-              ) {
-                Row(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                  verticalAlignment = Alignment.CenterVertically,
-                  horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                  Surface(
-                    shape = CircleShape,
-                    color = swatchColor,
-                    modifier = Modifier.size(28.dp)
-                  ) {}
-                  Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                      text = mode.labelHindi,
-                      style = MaterialTheme.typography.titleSmall,
-                      fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                      text = mode.subtitle,
-                      style = MaterialTheme.typography.bodySmall,
-                      color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                  }
-                  if (selected) {
-                    Icon(
-                      imageVector = Icons.Filled.CheckCircle,
-                      contentDescription = "चयनित",
-                      tint = MaterialTheme.colorScheme.primary
-                    )
-                  }
-                }
-              }
+    // Load saved admin rules from Firestore
+    LaunchedEffect(Unit) {
+        try {
+            val rulesDoc = db.collection("group_settings").document("rules").get().await()
+            if (rulesDoc.exists()) {
+                dueDayOfMonth = (rulesDoc.getLong("dueDayOfMonth") ?: 10L).toString()
+                dailyLateFine = (rulesDoc.getLong("dailyLateFine") ?: 100L).toString()
+                selectedToneName = rulesDoc.getString("sirenToneName") ?: "डिफ़ॉल्ट तेज़ सायरन अलर्ट"
             }
-          }
+        } catch (_: Exception) {
         }
+    }
 
-        // 2. Siren Test & Sound Toggle
-        Card(
-          shape = RoundedCornerShape(20.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-          ) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.weight(1f)
-              ) {
-                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Column {
-                  Text(
-                    text = "सायरन और अलर्ट साउंड",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                  )
-                  Text(
-                    text = if (soundEnabled) "चालू (Choon-Choon और End Siren)" else "बंद (Mute)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                }
-              }
-              Switch(
-                checked = soundEnabled,
-                onCheckedChange = onToggleSound,
-                modifier = Modifier.testTag("sound_toggle_switch")
-              )
-            }
-
-            Button(
-              onClick = onTestSiren,
-              shape = RoundedCornerShape(14.dp),
-              colors = ButtonDefaults.buttonColors(
-                containerColor = extra.celebrationGold,
-                contentColor = MaterialTheme.colorScheme.onSecondary
-              ),
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("test_siren_button")
-            ) {
-              Icon(Icons.Filled.Campaign, contentDescription = null)
-              Spacer(modifier = Modifier.width(8.dp))
-              Text("सायरन टेस्ट करें (Test Siren)", fontWeight = FontWeight.Bold)
-            }
-          }
-        }
-
-        // 3. Admin Committee, Custom Timer, Schedule, Slogan & APK Share
-        if (committee != null) {
-          Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            modifier = Modifier.fillMaxWidth()
-          ) {
-            Column(
-              modifier = Modifier.padding(16.dp),
-              verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-              Text(
-                text = "बोली टाइमर, शेड्यूल व बधाई संदेश",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-              )
-
-              OutlinedTextField(
-                value = timerMinutesText,
-                onValueChange = { timerMinutesText = it.filter { c -> c.isDigit() }.take(3) },
-                enabled = isAdmin,
-                label = { Text("कस्टम बोली टाइमर (कोई भी मिनट, जैसे 1, 3, 7, 15, 25)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("custom_timer_minutes_input")
-              )
-
-              // Schedule Date & Time Picker Row
-              Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.fillMaxWidth()
-              ) {
-                Column(
-                  modifier = Modifier.padding(12.dp),
-                  verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                  Text(
-                    text = "अगली लाइव बोली का समय (Auto-Start Schedule)",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                  )
-                  Text(
-                    text = if (scheduledMillis > 0L) {
-                      "📅 निर्धारित समय: ${dateFormat.format(Date(scheduledMillis))}"
-                    } else {
-                      "अभी कोई समय निर्धारित नहीं है"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                  )
-                  if (isAdmin) {
-                    Row(
-                      modifier = Modifier.fillMaxWidth(),
-                      horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                      OutlinedButton(
-                        onClick = { showDatePicker = true },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                          .weight(1f)
-                          .height(48.dp)
-                          .testTag("pick_schedule_datetime_button")
-                      ) {
-                        Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("तारीख व समय चुनें")
-                      }
-                      if (scheduledMillis > 0L) {
-                        IconButton(onClick = { scheduledMillis = 0L }) {
-                          Icon(Icons.Filled.Clear, contentDescription = "शेड्यूल हटाएं")
-                        }
-                      }
+    // System Ringtone Picker Launcher for Admin
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            @Suppress("DEPRECATION")
+            val uri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            if (uri != null) {
+                val ringtone = RingtoneManager.getRingtone(context, uri)
+                val title = ringtone?.getTitle(context) ?: "कस्टम सायरन टोन"
+                selectedToneName = title
+                scope.launch {
+                    try {
+                        db.collection("group_settings").document("rules").set(
+                            mapOf(
+                                "sirenToneUri" to uri.toString(),
+                                "sirenToneName" to title
+                            ),
+                            SetOptions.merge()
+                        ).await()
+                        Toast.makeText(context, "नया सायरन टोन सेव हो गया: $title", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
                     }
-                  }
                 }
-              }
+            }
+        }
+    }
 
-              OutlinedTextField(
-                value = sloganTemplate,
-                onValueChange = { sloganTemplate = it },
-                enabled = isAdmin,
-                label = { Text("विजेता बधाई संदेश ('You Are Great' टेम्पलेट)") },
-                supportingText = { Text("[Winner Name] लिखने पर विजेता का नाम अपने-आप जुड़ जाएगा") },
-                minLines = 2,
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("winner_slogan_input")
-              )
-
-              if (isAdmin) {
-                TextButton(
-                  onClick = { sloganTemplate = Committee.DEFAULT_SLOGAN_TEMPLATE }
-                ) {
-                  Text("डिफ़ॉल्ट बधाई संदेश वापस लाएं")
-                }
-              }
-
-              OutlinedTextField(
-                value = commName,
-                onValueChange = { commName = it },
-                enabled = isAdmin,
-                label = { Text("कमेटी का नाम") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-              )
-
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-              ) {
-                OutlinedTextField(
-                  value = totalAmountText,
-                  onValueChange = { totalAmountText = it.filter { c -> c.isDigit() } },
-                  enabled = isAdmin,
-                  label = { Text("कुल BC राशि (₹)") },
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                  singleLine = true,
-                  modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                  value = totalMembersText,
-                  onValueChange = { totalMembersText = it.filter { c -> c.isDigit() } },
-                  enabled = isAdmin,
-                  label = { Text("कुल सदस्य") },
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                  singleLine = true,
-                  modifier = Modifier.weight(0.75f)
-                )
-              }
-
-              OutlinedTextField(
-                value = apkDownloadUrl,
-                onValueChange = { apkDownloadUrl = it },
-                enabled = isAdmin,
-                label = { Text("डायरेक्ट APK डाउनलोड लिंक (Direct APK Link)") },
-                singleLine = true,
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("apk_link_input")
-              )
-
-              if (isAdmin) {
-                Button(
-                  onClick = {
-                    onSaveCommitteeSettings(
-                      commName,
-                      totalAmountText.toLongOrNull() ?: committee.totalBcAmount,
-                      totalMembersText.toLongOrNull() ?: committee.totalMembers,
-                      (timerMinutesText.toLongOrNull() ?: committee.timerMinutes).coerceIn(1L, 180L),
-                      scheduledMillis,
-                      sloganTemplate,
-                      apkDownloadUrl
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (isAdmin) "एडमिन कंट्रोल व सेटिंग्स" else "मेरी प्रोफाइल व सेटिंग्स",
+                        fontWeight = FontWeight.Bold
                     )
-                  },
-                  shape = RoundedCornerShape(14.dp),
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("save_settings_button")
-                ) {
-                  Icon(Icons.Filled.Save, contentDescription = null)
-                  Spacer(modifier = Modifier.width(8.dp))
-                  Text("सेटिंग्स सहेजें (Save)", fontWeight = FontWeight.Bold)
-                }
-              }
-
-              OutlinedButton(
-                onClick = {
-                  val inviteMsg = BcCalculator.buildInviteShareText(
-                    committeeName = commName,
-                    inviteCode = committee.inviteCode,
-                    totalBcAmount = totalAmountText.toLongOrNull() ?: committee.totalBcAmount,
-                    totalMembers = totalMembersText.toLongOrNull() ?: committee.totalMembers,
-                    apkUrl = apkDownloadUrl
-                  )
-                  shareToWhatsApp(context, inviteMsg)
                 },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(52.dp)
-                  .testTag("settings_share_apk_button")
-              ) {
-                Icon(Icons.Filled.Share, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("WhatsApp पर Invite Link / APK Share करें", fontWeight = FontWeight.Bold)
-              }
-            }
-          }
-        }
-
-        // 4. My Profile & Sign Out
-        Card(
-          shape = RoundedCornerShape(20.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          modifier = Modifier.fillMaxWidth()
-        ) {
-          Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-          ) {
-            Text(
-              text = "मेरा प्रोफ़ाइल (My Profile)",
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "वापस")
+                    }
+                }
             )
-            OutlinedTextField(
-              value = myName,
-              onValueChange = { myName = it },
-              label = { Text("आपका नाम") },
-              singleLine = true,
-              modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-              value = myMobile,
-              onValueChange = { myMobile = it.filter { c -> c.isDigit() || c == '+' }.take(15) },
-              label = { Text("मोबाइल नंबर (बोली बबल में दिखेगा)") },
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-              singleLine = true,
-              modifier = Modifier.fillMaxWidth()
-            )
-            Button(
-              onClick = { onUpdateProfile(myName, myMobile) },
-              enabled = myName.isNotBlank(),
-              shape = RoundedCornerShape(12.dp),
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-            ) {
-              Text("प्रोफ़ाइल अपडेट करें", fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
-              onClick = onSignOut,
-              shape = RoundedCornerShape(12.dp),
-              colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("sign_out_button")
-            ) {
-              Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-              Spacer(modifier = Modifier.width(8.dp))
-              Text("साइन आउट करें (Sign Out)", fontWeight = FontWeight.Bold)
-            }
-          }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-      }
-    }
-  }
-
-  if (showDatePicker) {
-    val datePickerState = rememberDatePickerState(
-      initialSelectedDateMillis = if (scheduledMillis > 0L) scheduledMillis else System.currentTimeMillis()
-    )
-    DatePickerDialog(
-      onDismissRequest = { showDatePicker = false },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            pickedDateUtcMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-            showDatePicker = false
-            showTimePicker = true
-          }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-          Text("आगे समय चुनें")
-        }
-      },
-      dismissButton = {
-        TextButton(onClick = { showDatePicker = false }) {
-          Text("रद्द करें")
-        }
-      }
-    ) {
-      DatePicker(state = datePickerState)
-    }
-  }
+            // 1. ADMIN ONLY SECTION
+            if (isAdmin) {
+                // Card A: Add Approved Member (Whitelist for Login)
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color(0xFFFFD700))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "नया सदस्य जोड़ें (Member Approval)",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFD700)
+                            )
+                        }
+                        Text(
+                            text = "यहाँ जोड़े गए मोबाइल नंबर और PIN से ही सदस्य ऐप में लॉगिन कर पाएंगे।",
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
 
-  if (showTimePicker) {
-    val calNow = Calendar.getInstance()
-    val timePickerState = rememberTimePickerState(
-      initialHour = calNow.get(Calendar.HOUR_OF_DAY),
-      initialMinute = (calNow.get(Calendar.MINUTE) + 2) % 60
-    )
-    AlertDialog(
-      onDismissRequest = { showTimePicker = false },
-      title = { Text("बोली शुरू होने का समय चुनें", fontWeight = FontWeight.Bold) },
-      text = {
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-          TimePicker(state = timePickerState)
-        }
-      },
-      confirmButton = {
-        Button(
-          onClick = {
-            val utcCal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
-              timeInMillis = pickedDateUtcMillis
-            }
-            val localCal = Calendar.getInstance().apply {
-              set(Calendar.YEAR, utcCal.get(Calendar.YEAR))
-              set(Calendar.MONTH, utcCal.get(Calendar.MONTH))
-              set(Calendar.DAY_OF_MONTH, utcCal.get(Calendar.DAY_OF_MONTH))
-              set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-              set(Calendar.MINUTE, timePickerState.minute)
-              set(Calendar.SECOND, 0)
-              set(Calendar.MILLISECOND, 0)
-            }
-            scheduledMillis = localCal.timeInMillis
-            showTimePicker = false
-          }
-        ) {
-          Text("समय सेट करें")
-        }
-      },
-      dismissButton = {
-        TextButton(onClick = { showTimePicker = false }) {
-          Text("रद्द करें")
-        }
-      }
-    )
-  }
-}
+                        OutlinedTextField(
+                            value = newMemberName,
+                            onValueChange = { newMemberName = it },
+                            label = { Text("सदस्य का पूरा नाम", color = Color(0xFF94A3B8)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color(0xFFFFD700)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = newMemberMobile,
+                                onValueChange = { newMemberMobile = it.filter { ch -> ch.isDigit() }.take(10) },
+                                label = { Text("10 अंकों का मोबाइल", color = Color(0xFF94A3B8)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFFFFD700)
+                                ),
+                                modifier = Modifier.weight(1.4f)
+                            )
+                            OutlinedTextField(
+                                value = newMemberPin,
+                                onValueChange = { newMemberPin = it.filter { ch -> ch.isDigit() }.take(4) },
+                                label = { Text("4-अंक PIN", color = Color(0xFF94A3B8)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFFFFD700)
+                                ),
+                                modifier = Modifier.weight(0.8f)
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val cleanMob = newMemberMobile.filter { it.isDigit() }
+                                val cleanPin = newMemberPin.filter { it.isDigit() }
+                                if (newMemberName.isBlank() || cleanMob.length != 10 || cleanPin.length != 4) {
+                                    Toast.makeText(context, "सही नाम, 10 अंकों का नंबर और 4-अंक का PIN डालें", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                isSavingMember = true
+                                scope.launch {
+                                    try {
+                                        db.collection("approved_members").document(cleanMob).set(
+                                            mapOf(
+                                                "name" to newMemberName.trim(),
+                                                "mobile" to cleanMob,
+                                                "pin" to cleanPin,
+                                                "approved" to true,
+                                                "addedAt" to System.currentTimeMillis()
+                                            )
+                                        ).await()
+                                        Toast.makeText(context, "${newMemberName.trim()} ग्रुप में जुड़ गए!", Toast.LENGTH_SHORT).show()
+                                        newMemberName = ""
+                                        newMemberMobile = ""
+                                        newMemberPin = "1234"
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "सेव करने में त्रुटि: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isSavingMember = false
+                                    }
+                                }
+                            },
+                            enabled = !isSavingMember,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFFD700),
+                                contentColor = Color(0xFF0F172A)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("सदस्य को मंजूरी दें (Approve Member)", fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
+
+                // Card B: Due Date, Late Fine & Loud Siren Ringtone Controls
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFFDC2626))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ड्यू डेट, लेट फाइन व सायरन अलर्ट",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedTextField(
+                                value = dueDayOfMonth,
+                                onValueChange = { dueDayOfMonth = it.filter { ch -> ch.isDigit() }.take(2) },
+                                label = { Text("Last Due तारीख (1-28)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = dailyLateFine,
+                                onValueChange = { dailyLateFine = it.filter { ch -> ch.isDigit() }.take(5) },
+                                label = { Text("प्रतिदिन लेट फाइन (₹)") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Quick Fine Preset Chips
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("100", "200", "500").forEach { finePreset ->
+                                FilterChip(
+                                    selected = dailyLateFine == finePreset,
+                                    onClick = { dailyLateFine = finePreset },
+                                    label = { Text("₹$finePreset / दिन") }
+                                )
+                            }
+                        }
+
+                        // Siren / Ringtone Controls (Admin Only)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("बोली शुरू होने का सायरन अलार्म", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = "चुनी हुई टोन: $selectedToneName",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            Switch(
+                                checked = soundEnabled,
+                                onCheckedChange = onToggleSound
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "कड़क सायरन / रिंगटोन चुनें")
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                                    }
+                                    ringtonePickerLauncher.launch(intent)
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("टोन बदलें", fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = onTestSiren,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("सायरन टेस्ट", fontSize = 13.sp)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                val day = (dueDayOfMonth.toLongOrNull() ?: 10L).coerceIn(1L, 28L)
+                                val fine = (dailyLateFine.toLongOrNull() ?: 100L).coerceAtLeast(0L)
+                                isSavingRules = true
+                                scope.launch {
+                                    try {
+                                        db.collection("group_settings").document("rules").set(
+                                            mapOf(
+                                                "dueDayOfMonth" to day,
+                                                "dailyLateFine" to fine,
+                                                "sirenEnabled" to soundEnabled
+                                            ),
+                                            SetOptions.merge()
+                                        ).await()
+                                        Toast.makeText(context, "ड्यू डेट (तारीख $day) और लेट फाइन (₹$fine) सेव हो गया!", Toast.LENGTH_SHORT).show()
+                                   
