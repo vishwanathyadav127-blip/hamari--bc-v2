@@ -1,4 +1,6 @@
 package com.example.ui.auth
+import com.aistudio.bccommittee.vhkqxrm.R
+
 
 import android.app.Activity
 import android.content.Context
