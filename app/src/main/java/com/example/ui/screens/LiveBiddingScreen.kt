@@ -1,23 +1,11 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -28,35 +16,21 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.model.BcCalculator
 import com.example.model.BidMessage
 import com.example.model.Committee
@@ -67,519 +41,393 @@ import java.util.Locale
 
 @Composable
 fun LiveBiddingScreen(
-  committee: Committee,
-  bids: List<BidMessage>,
-  currentUserId: String,
-  isAdmin: Boolean,
-  countdownRemainingSeconds: Long,
-  onStartLiveBidding: (Long) -> Unit,
-  onPlaceBid: (Long) -> Unit,
-  onSendChat: (String) -> Unit,
-  onEndAndDeclareWinner: () -> Unit,
-  onBack: () -> Unit
+    committee: Committee,
+    bids: List<BidMessage>,
+    currentUserId: String,
+    isAdmin: Boolean,
+    countdownRemainingSeconds: Long,
+    onStartRound: (Int) -> Unit,
+    onPlaceBid: (Long) -> Unit,
+    onSendChat: (String) -> Unit,
+    onEndAndDeclareWinner: () -> Unit,
+    onBack: () -> Unit
 ) {
-  BackHandler(onBack = onBack)
+    BackHandler(onBack = onBack)
 
-  val extra = LocalBcExtraColors.current
-  val listState = rememberLazyListState()
-  val roundBids = remember(bids, committee.roundNumber) {
-    bids.filter { it.roundNumber == committee.roundNumber || it.roundNumber == 0L }
-  }
-
-  var bidAmountInput by remember(committee.currentHighestBid) {
-    val suggested = (committee.currentHighestBid + 1000L).coerceAtMost(committee.totalBcAmount)
-    mutableStateOf(suggested.toString())
-  }
-  var chatMessageInput by remember { mutableStateOf("") }
-  var startMinutesInput by remember(committee.timerMinutes) {
-    mutableStateOf(committee.timerMinutes.toString())
-  }
-
-  LaunchedEffect(roundBids.size) {
-    if (roundBids.isNotEmpty()) {
-      listState.animateScrollToItem(roundBids.lastIndex)
+    val extra = LocalBcExtraColors.current
+    val listState = rememberLazyListState()
+    val roundBids = remember(bids, committee.currentRound) {
+        bids.filter { it.roundNumber == committee.currentRound }
     }
-  }
 
-  Column(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(extra.whatsappBg)
-  ) {
-    // WhatsApp-Style Header
-    Surface(
-      color = extra.whatsappHeaderBg,
-      shadowElevation = 4.dp,
-      modifier = Modifier.fillMaxWidth()
-    ) {
-      Column(
+    var bidAmountInput by remember(committee.currentHighestBid) {
+        val suggested = (committee.currentHighestBid + 500L)
+        mutableStateOf(suggested.toString())
+    }
+    var chatMessageInput by remember { mutableStateOf("") }
+    var startMinutesInput by remember(committee.timerMinutes) {
+        mutableStateOf(committee.timerMinutes.coerceAtLeast(1).toString())
+    }
+
+    LaunchedEffect(roundBids.size) {
+        if (roundBids.isNotEmpty()) {
+            listState.animateScrollToItem(roundBids.size - 1)
+        }
+    }
+
+    val mins = (countdownRemainingSeconds.coerceAtLeast(0L)) / 60
+    val secs = (countdownRemainingSeconds.coerceAtLeast(0L)) % 60
+    val timerText = String.format(Locale.US, "%02d:%02d", mins, secs)
+
+    Column(
         modifier = Modifier
-          .statusBarsPadding()
-          .padding(horizontal = 8.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          IconButton(onClick = onBack) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-              contentDescription = "वापस जाएं",
-              tint = MaterialTheme.colorScheme.onPrimary
-            )
-          }
-
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = "लाइव बोली कक्ष • दौर #${committee.roundNumber}",
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.onPrimary
-            )
-            Text(
-              text = "${committee.name} • ${committee.memberUids.size} ऑनलाइन",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-            )
-          }
-
-          Surface(
-            color = if (committee.isLive) extra.liveRed else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
-            shape = RoundedCornerShape(12.dp)
-          ) {
-            val mins = countdownRemainingSeconds / 60
-            val secs = countdownRemainingSeconds % 60
-            Text(
-              text = if (committee.isLive) {
-                String.format(Locale.US, "● %02d:%02d", mins, secs)
-              } else {
-                "🔒 बंद"
-              },
-              style = MaterialTheme.typography.titleMedium,
-              fontWeight = FontWeight.ExtraBold,
-              color = MaterialTheme.colorScheme.onPrimary,
-              modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-          }
-        }
-
-        // Highest Bid Banner + Admin End/Start Control
+            .fillMaxSize()
+            .background(extra.whatsappBg)
+    ) {
+        // WhatsApp-Style Clean Header with Live Timer INSIDE Group Icon
         Surface(
-          color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
-          shape = RoundedCornerShape(12.dp),
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            color = extra.whatsappHeaderBg,
+            shadowElevation = 4.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = if (committee.currentHighestBid > 0) {
-                  "सबसे ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}"
-                } else {
-                  "अभी कोई बोली नहीं लगी"
-                },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary
-              )
-              if (committee.currentHighestBidderName.isNotBlank()) {
-                Text(
-                  text = "लीडर: ${committee.currentHighestBidderName} ${if (committee.currentHighestBidderMobile.isNotBlank()) "(${committee.currentHighestBidderMobile})" else ""}",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
-                )
-              }
-            }
-
-            if (isAdmin && committee.isLive) {
-              Button(
-                onClick = onEndAndDeclareWinner,
-                colors = ButtonDefaults.buttonColors(
-                  containerColor = extra.celebrationGold,
-                  contentColor = MaterialTheme.colorScheme.onSecondary
-                ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            Column(
                 modifier = Modifier
-                  .height(40.dp)
-                  .testTag("end_bidding_button")
-              ) {
-                Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("बोली बंद व विजेता", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // WhatsApp-style Bidding & Chat Stream
-    LazyColumn(
-      state = listState,
-      modifier = Modifier
-        .weight(1f)
-        .fillMaxWidth(),
-      contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-      if (roundBids.isEmpty()) {
-        item {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(vertical = 32.dp),
-            contentAlignment = Alignment.Center
-          ) {
-            Surface(
-              color = extra.whatsappSystemChip,
-              shape = RoundedCornerShape(16.dp)
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
-              Text(
-                text = "💬 लाइव बोली और ग्रुप चैट यहाँ दिखाई देगी। पहली बोली लगाकर शुरुआत करें!",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-              )
-            }
-          }
-        }
-      }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "वापस",
+                            tint = Color.White
+                        )
+                    }
 
-      items(roundBids, key = { it.id.ifBlank { "${it.senderUid}_${it.amount}_${it.message}" } }) { item ->
-        if (item.type == "system") {
-          SystemEventBubble(item)
-        } else {
-          WhatsAppBidBubble(
-            item = item,
-            isOwn = item.senderUid == currentUserId
-          )
-        }
-      }
-    }
+                    // Group Icon with Live Countdown Timer Inside
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (committee.isLive) Color(0xFFB91C1C) else Color(0xFF1E3A8A)
+                            )
+                            .border(
+                                width = 2.dp,
+                                color = if (committee.isLive) Color(0xFFFFD700) else Color.White.copy(alpha = 0.6f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (committee.isLive) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "LIVE",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFFFD700),
+                                    lineHeight = 9.sp
+                                )
+                                Text(
+                                    text = timerText,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "🦚", fontSize = 14.sp, lineHeight = 15.sp)
+                                Text(
+                                    text = "BC",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFFD700),
+                                    lineHeight = 12.sp
+                                )
+                            }
+                        }
+                    }
 
-    // Bottom Action Bar
-    Surface(
-      color = MaterialTheme.colorScheme.surface,
-      tonalElevation = 6.dp,
-      shadowElevation = 8.dp,
-      modifier = Modifier
-        .fillMaxWidth()
-        .imePadding()
-        .navigationBarsPadding()
-    ) {
-      if (committee.isLive) {
-        Column(
-          modifier = Modifier.padding(12.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          // 1-Tap Quick Bid Chips
-          LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            val increments = listOf(500L, 1000L, 2000L, 5000L)
-            items(increments) { inc ->
-              val target = (committee.currentHighestBid + inc).coerceAtMost(committee.totalBcAmount)
-              SuggestionChip(
-                onClick = {
-                  if (target > committee.currentHighestBid) {
-                    onPlaceBid(target)
-                  }
-                },
-                label = {
-                  Text(
-                    text = "+${BcCalculator.formatRupees(inc)} (${BcCalculator.formatRupees(target)})",
-                    fontWeight = FontWeight.Bold
-                  )
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = committee.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (committee.isLive) {
+                                "दौर #${committee.currentRound} • बोली चालू है"
+                            } else {
+                                "दौर #${committee.currentRound} • बोली बंद"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    // Admin Stop Button during Live Bidding
+                    if (isAdmin && committee.isLive) {
+                        Button(
+                            onClick = onEndAndDeclareWinner,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFDC2626),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("end_bidding_button")
+                        ) {
+                            Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("बोली बंद", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-              )
-            }
-          }
 
-          // Custom Bid Input + Bid Button
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            OutlinedTextField(
-              value = bidAmountInput,
-              onValueChange = { bidAmountInput = it.filter { ch -> ch.isDigit() } },
-              label = { Text("बोली राशि (₹)") },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-              modifier = Modifier
+                // Compact Highest Bid Strip (Only shown during Live Bidding)
+                if (committee.isLive) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp, start = 6.dp, end = 6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (committee.currentHighestBid > 0L) {
+                                    "ऊँची बोली: ${BcCalculator.formatCurrency(committee.currentHighestBid)}"
+                                } else {
+                                    "पहली बोली लगाएं"
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFD700)
+                            )
+                            if (committee.currentHighestBidderName.isNotBlank()) {
+                                Text(
+                                    text = "लीडर: ${committee.currentHighestBidderName}",
+                                    fontSize = 12.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Open, Uncluttered WhatsApp-Style Chat & Bid Stream
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
                 .weight(1f)
-                .testTag("bid_amount_input")
-            )
-            Button(
-              onClick = {
-                val amt = bidAmountInput.toLongOrNull() ?: 0L
-                if (amt > committee.currentHighestBid) {
-                  onPlaceBid(amt)
-                }
-              },
-              shape = RoundedCornerShape(14.dp),
-              colors = ButtonDefaults.buttonColors(
-                containerColor = extra.successGreen,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-              ),
-              modifier = Modifier
-                .height(54.dp)
-                .testTag("place_bid_button")
-            ) {
-              Icon(Icons.Filled.Gavel, contentDescription = null, modifier = Modifier.size(18.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("बोली लगाएं", fontWeight = FontWeight.Bold)
-            }
-          }
-
-          // Quick Chat Message Input
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            OutlinedTextField(
-              value = chatMessageInput,
-              onValueChange = { chatMessageInput = it },
-              placeholder = { Text("ग्रुप संदेश लिखें...") },
-              singleLine = true,
-              shape = RoundedCornerShape(24.dp),
-              colors = OutlinedTextFieldDefaults.colors(),
-              modifier = Modifier.weight(1f)
-            )
-            Surface(
-              shape = CircleShape,
-              color = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.size(48.dp)
-            ) {
-              IconButton(
-                onClick = {
-                  if (chatMessageInput.isNotBlank()) {
-                    onSendChat(chatMessageInput)
-                    chatMessageInput = ""
-                  }
-                }
-              ) {
-                Icon(
-                  imageVector = Icons.AutoMirrored.Filled.Send,
-                  contentDescription = "संदेश भेजें",
-                  tint = MaterialTheme.colorScheme.onPrimary
-                )
-              }
-            }
-          }
-        }
-      } else {
-        Column(
-          modifier = Modifier.padding(14.dp),
-          verticalArrangement = Arrangement.spacedBy(10.dp)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            Icon(
-              imageVector = Icons.Filled.Lock,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-              text = if (committee.winnerDeclared) {
-                "🏆 दौर #${committee.roundNumber} समाप्त! विजेता: ${committee.winnerName} (${BcCalculator.formatRupees(committee.winningBid)})"
-              } else {
-                "बोली कक्ष अभी बंद है। शेड्यूल समय पर या एडमिन द्वारा शुरू होने पर खुलेगा।"
-              },
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.Medium,
-              color = MaterialTheme.colorScheme.onSurface
-            )
-          }
+            // Post-Bidding Automatic Calculation Card (Total Bid, Member Profit, Net Installment & Due Date)
+            if (!committee.isLive && committee.currentHighestBid > 0L) {
+                item {
+                    val totalPool = committee.totalAmount
+                    val highestBid = committee.currentHighestBid
+                    val memberCount = committee.totalMembers.coerceAtLeast(1)
+                    val perMemberDividend = highestBid / memberCount
+                    val baseInstallment = totalPool / memberCount
+                    val netPayableInstallment = (baseInstallment - perMemberDividend).coerceAtLeast(0L)
 
-          if (isAdmin && !committee.winnerDeclared) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(8.dp),
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              OutlinedTextField(
-                value = startMinutesInput,
-                onValueChange = { startMinutesInput = it.filter { c -> c.isDigit() }.take(3) },
-                label = { Text("मिनट") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(0.4f)
-              )
-              Button(
-                onClick = {
-                  val mins = (startMinutesInput.toLongOrNull() ?: committee.timerMinutes).coerceIn(1L, 180L)
-                  onStartLiveBidding(mins)
-                },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                  .weight(1f)
-                  .height(52.dp)
-              ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("लाइव बोली शुरू करें", fontWeight = FontWeight.Bold)
-              }
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                        border = BorderStroke(1.5.dp, Color(0xFFFFD700)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "🏆 दौर #${committee.currentRound} बोली परिणाम व हिसाब",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFFD700)
+                            )
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
+
+                            if (committee.currentHighestBidderName.isNotBlank()) {
+                                ResultRow(
+                                    label = "बोली विजेता:",
+                                    value = committee.currentHighestBidderName,
+                                    valueColor = Color.White
+                                )
+                            }
+                            ResultRow(
+                                label = "कुल कमेटी राशि:",
+                                value = BcCalculator.formatCurrency(totalPool),
+                                valueColor = Color.White
+                            )
+                            ResultRow(
+                                label = "फाइनल बोली (छूट):",
+                                value = BcCalculator.formatCurrency(highestBid),
+                                valueColor = Color(0xFFFBBF24)
+                            )
+                            ResultRow(
+                                label = "हर मेंबर का फायदा (बचत):",
+                                value = "+ ${BcCalculator.formatCurrency(perMemberDividend)}",
+                                valueColor = Color(0xFF4ADE80)
+                            )
+                            Surface(
+                                color = Color(0xFF1E293B),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    ResultRow(
+                                        label = "इस महीने भरने वाली किस्त:",
+                                        value = BcCalculator.formatCurrency(netPayableInstallment),
+                                        valueColor = Color(0xFFFFD700),
+                                        isBold = true
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    ResultRow(
+                                        label = "आखिरी तारीख (Last Due Date):",
+                                        value = "हर महीने की 10 तारीख",
+                                        valueColor = Color(0xFFF87171),
+                                        isBold = true
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
-          }
-        }
-      }
-    }
-  }
-}
 
-@Composable
-private fun SystemEventBubble(item: BidMessage) {
-  val extra = LocalBcExtraColors.current
-  Box(
-    modifier = Modifier.fillMaxWidth(),
-    contentAlignment = Alignment.Center
-  ) {
-    Surface(
-      color = extra.whatsappSystemChip,
-      shape = RoundedCornerShape(16.dp),
-      tonalElevation = 1.dp
-    ) {
-      Row(
-        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        Icon(
-          imageVector = Icons.Filled.EmojiEvents,
-          contentDescription = null,
-          tint = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.size(16.dp)
-        )
-        Text(
-          text = item.message,
-          style = MaterialTheme.typography.labelLarge,
-          fontWeight = FontWeight.SemiBold,
-          color = MaterialTheme.colorScheme.onSurface
-        )
-      }
-    }
-  }
-}
+            // Clean Empty Screen during Live Bidding (No distracting notices)
+            items(roundBids, key = { it.id }) { msg ->
+                val isMine = msg.senderId == currentUserId
+                val timeStr = remember(msg.timestamp) {
+                    SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(msg.timestamp))
+                }
 
-@Composable
-private fun WhatsAppBidBubble(
-  item: BidMessage,
-  isOwn: Boolean
-) {
-  val extra = LocalBcExtraColors.current
-  val timeFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
-  val timestampText = remember(item.createdAt) {
-    val date = item.createdAt?.toDate() ?: Date()
-    timeFormat.format(date)
-  }
-
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
-    verticalAlignment = Alignment.Bottom
-  ) {
-    if (!isOwn) {
-      Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.size(36.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = if (item.senderMobile.isNotBlank()) Icons.Filled.PhoneAndroid else Icons.Filled.Person,
-            contentDescription = item.senderName,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
-      Spacer(modifier = Modifier.width(6.dp))
-    }
-
-    Surface(
-      shape = RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 16.dp,
-        bottomStart = if (isOwn) 16.dp else 4.dp,
-        bottomEnd = if (isOwn) 4.dp else 16.dp
-      ),
-      color = if (isOwn) extra.whatsappOwnBubble else extra.whatsappOtherBubble,
-      shadowElevation = 2.dp,
-      modifier = Modifier.widthIn(min = 160.dp, max = 310.dp)
-    ) {
-      Column(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-      ) {
-        val headerText = if (item.senderMobile.isNotBlank()) {
-          "${item.senderName} • ${item.senderMobile}"
-        } else {
-          item.senderName
-        }
-        Text(
-          text = headerText,
-          style = MaterialTheme.typography.labelMedium,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.primary
-        )
-
-        if (item.type == "bid") {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            Text(
-              text = BcCalculator.formatRupees(item.amount),
-              style = MaterialTheme.typography.headlineSmall,
-              fontWeight = FontWeight.ExtraBold,
-              color = MaterialTheme.colorScheme.onSurface
-            )
-            Surface(
-              color = extra.successGreenContainer,
-              shape = RoundedCornerShape(8.dp)
-            ) {
-              Text(
-                text = "बोली",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = extra.successGreen,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-              )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
+                ) {
+                    Surface(
+                        color = when {
+                            msg.isBid && isMine -> Color(0xFFDCF8C6)
+                            msg.isBid -> Color.White
+                            isMine -> extra.whatsappBubbleOutgoing
+                            else -> extra.whatsappBubbleIncoming
+                        },
+                        shape = RoundedCornerShape(
+                            topStart = 14.dp,
+                            topEnd = 14.dp,
+                            bottomStart = if (isMine) 14.dp else 4.dp,
+                            bottomEnd = if (isMine) 4.dp else 14.dp
+                        ),
+                        shadowElevation = 2.dp,
+                        border = if (msg.isBid) BorderStroke(1.dp, Color(0xFF16A34A)) else null,
+                        modifier = Modifier.widthIn(max = 290.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            if (!isMine) {
+                                Text(
+                                    text = msg.senderName,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF075E54)
+                                )
+                            }
+                            if (msg.isBid) {
+                                Text(
+                                    text = "💰 बोली: ${BcCalculator.formatCurrency(msg.bidAmount)}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF15803D)
+                                )
+                            } else {
+                                Text(
+                                    text = msg.message,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF111827)
+                                )
+                            }
+                            Text(
+                                text = timeStr,
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 2.dp)
+                            )
+                        }
+                    }
+                }
             }
-          }
-        } else {
-          Text(
-            text = item.message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-          )
         }
 
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.End
+        // Bottom Action Bar
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
         ) {
-          Text(
-            text = timestampText,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
-        }
-      }
-    }
-  }
-}
+            if (committee.isLive) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 1-Tap Quick Bid Chips
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val increments = listOf(500L, 1000L, 2000L, 5000L)
+                        items(increments) { inc ->
+                            val target = (committee.currentHighestBid + inc)
+                            SuggestionChip(
+                                onClick = {
+                                    if (target > committee.currentHighestBid) {
+                                        onPlaceBid(target)
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        text = "+${BcCalculator.formatCurrency(inc)}",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    // Bid Input & Place Bid Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = bidAmountInput,
+                            onValueChange = { bidAmountInp
