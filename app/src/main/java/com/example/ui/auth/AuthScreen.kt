@@ -1,6 +1,4 @@
 package com.example.ui.auth
-import com.example.R
-
 
 import android.app.Activity
 import android.content.Context
