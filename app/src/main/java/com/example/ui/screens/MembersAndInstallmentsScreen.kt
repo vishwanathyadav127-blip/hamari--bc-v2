@@ -83,7 +83,7 @@ fun MembersAndInstallmentsScreen(
     val installmentAmount = if (committee.perMemberInstallment > 0L) {
         committee.perMemberInstallment
     } else {
-        val count = committee.totalMembers.coerceAtLeast(1)
+        val count = committee.totalMembers.coerceAtLeast(1L)
         committee.totalBcAmount / count
     }
 
@@ -124,13 +124,13 @@ fun MembersAndInstallmentsScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "किस्त व लेखा-जोखा • दौर #${committee.currentRound}",
+                                    text = "किस्त व लेखा-जोखा • दौर #${committee.roundNumber}",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFFFD700)
                                 )
                                 Text(
-                                    text = "प्रति सदस्य किस्त: ${BcCalculator.formatCurrency(installmentAmount)}",
+                                    text = "प्रति सदस्य किस्त: ${BcCalculator.formatRupees(installmentAmount)}",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
@@ -171,7 +171,7 @@ fun MembersAndInstallmentsScreen(
                                 )
                                 Text(
                                     text = if (overdueDays > 0) {
-                                        "लेट फाइन: ${BcCalculator.formatCurrency(currentLateFinePerUnpaid)} ($overdueDays दिन)"
+                                        "लेट फाइन: ${BcCalculator.formatRupees(currentLateFinePerUnpaid)} ($overdueDays दिन)"
                                     } else {
                                         "फाइन: ₹${dailyLateFine}/दिन"
                                     },
@@ -209,7 +209,7 @@ fun MembersAndInstallmentsScreen(
                                     val sb = StringBuilder()
                                     sb.append("🦚 *${committee.name} - किस्त रिपोर्ट*\n")
                                     sb.append("📅 *तारीख व समय:* $nowStr\n")
-                                    sb.append("🔄 *दौर:* #${committee.currentRound} | *किस्त:* ${BcCalculator.formatCurrency(installmentAmount)}\n")
+                                    sb.append("🔄 *दौर:* #${committee.roundNumber} | *किस्त:* ${BcCalculator.formatRupees(installmentAmount)}\n")
                                     sb.append("⏰ *Last Due Date:* हर महीने की $dueDayOfMonth तारीख\n")
                                     sb.append("━━━━━━━━━━━━━━━\n")
                                     members.forEachIndexed { idx, m ->
@@ -319,9 +319,9 @@ fun MembersAndInstallmentsScreen(
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                if (member.mobile.isNotBlank()) {
+                                if (member.mobileNumber.isNotBlank()) {
                                     Text(
-                                        text = "📱 ${member.mobile}",
+                                        text = "📱 ${member.mobileNumber}",
                                         fontSize = 12.sp,
                                         color = Color.Gray
                                     )
@@ -331,7 +331,7 @@ fun MembersAndInstallmentsScreen(
                                         dateTimeFormatter.format(Date(it))
                                     } ?: "समय दर्ज"
                                     Text(
-                                        text = "✅ जमा: ${BcCalculator.formatCurrency(installmentAmount)} • $timeLabel",
+                                        text = "✅ जमा: ${BcCalculator.formatRupees(installmentAmount)} • $timeLabel",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFF15803D)
@@ -339,9 +339,9 @@ fun MembersAndInstallmentsScreen(
                                 } else {
                                     Text(
                                         text = if (currentLateFinePerUnpaid > 0L) {
-                                            "बाकी: ${BcCalculator.formatCurrency(installmentAmount)} + ₹$currentLateFinePerUnpaid फाइन = ${BcCalculator.formatCurrency(totalPayableForMember)}"
+                                            "बाकी: ${BcCalculator.formatRupees(installmentAmount)} + ₹$currentLateFinePerUnpaid फाइन = ${BcCalculator.formatRupees(totalPayableForMember)}"
                                         } else {
-                                            "बाकी किस्त: ${BcCalculator.formatCurrency(installmentAmount)}"
+                                            "बाकी किस्त: ${BcCalculator.formatRupees(installmentAmount)}"
                                         },
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -396,36 +396,4 @@ fun MembersAndInstallmentsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = newMobile,
-                        onValueChange = { if (it.length <= 10) newMobile = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("मोबाइल नंबर (10 अंक)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (newName.isNotBlank()) {
-                            onAddMember(newName.trim(), newMobile.trim())
-                            newName = ""
-                            newMobile = ""
-                            showAddDialog = false
-                            Toast.makeText(context, "नया सदस्य जुड़ गया", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                ) {
-                    Text("जोड़ें")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("रद्द करें")
-                }
-            }
-        )
-    }
-}
+                  
