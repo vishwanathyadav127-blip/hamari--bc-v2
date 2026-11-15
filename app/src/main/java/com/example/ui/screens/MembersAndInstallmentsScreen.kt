@@ -396,4 +396,36 @@ fun MembersAndInstallmentsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-               
+                    OutlinedTextField(
+                        value = newMobile,
+                        onValueChange = { if (it.length <= 10) newMobile = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("मोबाइल नंबर (10 अंक)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newName.isNotBlank()) {
+                            onAddMember(newName.trim(), newMobile.trim())
+                            newName = ""
+                            newMobile = ""
+                            showAddDialog = false
+                            Toast.makeText(context, "नया सदस्य जुड़ गया", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("जोड़ें")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("रद्द करें")
+                }
+            }
+        )
+    }
+}
