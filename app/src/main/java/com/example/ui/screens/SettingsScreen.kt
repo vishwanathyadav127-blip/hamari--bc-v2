@@ -70,7 +70,7 @@ fun SettingsScreen(
 
     // User Profile States
     var profileName by remember(userProfile) { mutableStateOf(userProfile?.displayName ?: "") }
-    var profileMobile by remember(userProfile) { mutableStateOf(userProfile?.phoneNumber ?: "") }
+    var profileMobile by remember(userProfile) { mutableStateOf(userProfile?.mobileNumber ?: "") }
 
     // Admin: Add Approved Member States
     var newMemberName by remember { mutableStateOf("") }
@@ -90,10 +90,10 @@ fun SettingsScreen(
         mutableStateOf((committee?.totalBcAmount ?: 100000L).toString())
     }
     var totalMembersText by remember(committee) {
-        mutableStateOf((committee?.totalMembers ?: 10).toString())
+        mutableStateOf((committee?.totalMembers ?: 10L).toString())
     }
     var timerMinutesText by remember(committee) {
-        mutableStateOf((committee?.timerMinutes ?: 5).toString())
+        mutableStateOf((committee?.timerMinutes ?: 5L).toString())
     }
 
     // Load saved admin rules from Firestore
@@ -394,4 +394,4 @@ fun SettingsScreen(
                                         ).await()
                                         Toast.makeText(context, "ड्यू डेट (तारीख $day) और लेट फाइन (₹$fine) सेव हो गया!", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
-      
+   
