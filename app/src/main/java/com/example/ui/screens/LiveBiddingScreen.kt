@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -51,175 +50,90 @@ fun LiveBiddingScreen(
     onBack: () -> Unit
 ) {
     BackHandler(onBack = onBack)
-
     val extra = LocalBcExtraColors.current
     val listState = rememberLazyListState()
     val roundBids = remember(bids, committee.roundNumber) {
         bids.filter { it.roundNumber == committee.roundNumber }
     }
-
-    var bidAmountInput by remember(committee.currentHighestBid) {
-        val suggested = (committee.currentHighestBid + 500L)
-        mutableStateOf(suggested.toString())
+    var bidInput by remember(committee.currentHighestBid) {
+        mutableStateOf((committee.currentHighestBid + 500L).toString())
     }
-    var chatMessageInput by remember { mutableStateOf("") }
-    var startMinutesInput by remember(committee.timerMinutes) {
+    var chatInput by remember { mutableStateOf("") }
+    var minsInput by remember(committee.timerMinutes) {
         mutableStateOf(committee.timerMinutes.coerceAtLeast(1L).toString())
     }
 
     LaunchedEffect(roundBids.size) {
-        if (roundBids.isNotEmpty()) {
-            listState.animateScrollToItem(roundBids.size - 1)
-        }
+        if (roundBids.isNotEmpty()) listState.animateScrollToItem(roundBids.size - 1)
     }
 
     val mins = (countdownRemainingSeconds.coerceAtLeast(0L)) / 60
     val secs = (countdownRemainingSeconds.coerceAtLeast(0L)) % 60
     val timerText = String.format(Locale.US, "%02d:%02d", mins, secs)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(extra.whatsappBg)
-    ) {
-        Surface(
-            color = extra.whatsappHeaderBg,
-            shadowElevation = 4.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .statusBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    Column(modifier = Modifier.fillMaxSize().background(extra.whatsappBg)) {
+        Surface(color = extra.whatsappHeaderBg, shadowElevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.statusBarsPadding().padding(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "वापस",
-                            tint = Color.White
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "वापस", tint = Color.White)
                     }
-
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (committee.isLive) Color(0xFFB91C1C) else Color(0xFF1E3A8A)
-                            )
-                            .border(
-                                width = 2.dp,
-                                color = if (committee.isLive) Color(0xFFFFD700) else Color.White.copy(alpha = 0.6f),
-                                shape = CircleShape
-                            ),
+                            .background(if (committee.isLive) Color(0xFFB91C1C) else Color(0xFF1E3A8A))
+                            .border(2.dp, if (committee.isLive) Color(0xFFFFD700) else Color.White.copy(0.6f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (committee.isLive) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "LIVE",
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFFFFD700),
-                                    lineHeight = 9.sp
-                                )
-                                Text(
-                                    text = timerText,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    lineHeight = 14.sp
-                                )
+                                Text("LIVE", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFD700))
+                                Text(timerText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                             }
                         } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "🦚", fontSize = 14.sp, lineHeight = 15.sp)
-                                Text(
-                                    text = "BC",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFFD700),
-                                    lineHeight = 12.sp
-                                )
-                            }
+                            Text("🦚 BC", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD700))
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
+                    Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
+                        Text(committee.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Text(
-                            text = committee.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = if (committee.isLive) {
-                                "दौर #${committee.roundNumber} • बोली चालू है"
-                            } else {
-                                "दौर #${committee.roundNumber} • बोली बंद"
-                            },
+                            text = if (committee.isLive) "दौर #${committee.roundNumber} • बोली चालू है" else "दौर #${committee.roundNumber} • बोली बंद",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f)
                         )
                     }
-
                     if (isAdmin && committee.isLive) {
                         Button(
                             onClick = onEndAndDeclareWinner,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFDC2626),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            modifier = Modifier
-                                .height(38.dp)
-                                .testTag("end_bidding_button")
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626), contentColor = Color.White),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Filled.Stop, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
                             Text("बोली बंद", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-
                 if (committee.isLive) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.25f),
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 6.dp, start = 6.dp, end = 6.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (committee.currentHighestBid > 0L) {
-                                    "ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}"
-                                } else {
-                                    "पहली बोली लगाएं"
-                                },
+                                text = if (committee.currentHighestBid > 0L) "ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}" else "पहली बोली लगाएं",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFFD700)
                             )
                             if (committee.currentHighestBidderName.isNotBlank()) {
-                                Text(
-                                    text = "लीडर: ${committee.currentHighestBidderName}",
-                                    fontSize = 12.sp,
-                                    color = Color.White
-                                )
+                                Text("लीडर: ${committee.currentHighestBidderName}", fontSize = 12.sp, color = Color.White)
                             }
                         }
                     }
@@ -229,10 +143,8 @@ fun LiveBiddingScreen(
 
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (!committee.isLive && committee.currentHighestBid > 0L) {
@@ -240,9 +152,8 @@ fun LiveBiddingScreen(
                     val totalPool = committee.totalBcAmount
                     val highestBid = committee.currentHighestBid
                     val memberCount = committee.totalMembers.coerceAtLeast(1L)
-                    val perMemberDividend = highestBid / memberCount
-                    val baseInstallment = totalPool / memberCount
-                    val netPayableInstallment = (baseInstallment - perMemberDividend).coerceAtLeast(0L)
+                    val dividend = highestBid / memberCount
+                    val netInstallment = ((totalPool / memberCount) - dividend).coerceAtLeast(0L)
 
                     Card(
                         shape = RoundedCornerShape(18.dp),
@@ -250,61 +161,17 @@ fun LiveBiddingScreen(
                         border = BorderStroke(1.5.dp, Color(0xFFFFD700)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "🏆 दौर #${committee.roundNumber} बोली परिणाम व हिसाब",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFFFFD700)
-                            )
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("🏆 दौर #${committee.roundNumber} बोली परिणाम", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFD700))
                             HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
-
                             if (committee.currentHighestBidderName.isNotBlank()) {
-                                ResultRow(
-                                    label = "बोली विजेता:",
-                                    value = committee.currentHighestBidderName,
-                                    valueColor = Color.White
-                                )
+                                ResultRow("बोली विजेता:", committee.currentHighestBidderName, Color.White)
                             }
-                            ResultRow(
-                                label = "कुल कमेटी राशि:",
-                                value = BcCalculator.formatRupees(totalPool),
-                                valueColor = Color.White
-                            )
-                            ResultRow(
-                                label = "फाइनल बोली (छूट):",
-                                value = BcCalculator.formatRupees(highestBid),
-                                valueColor = Color(0xFFFBBF24)
-                            )
-                            ResultRow(
-                                label = "हर मेंबर का फायदा (बचत):",
-                                value = "+ ${BcCalculator.formatRupees(perMemberDividend)}",
-                                valueColor = Color(0xFF4ADE80)
-                            )
-                            Surface(
-                                color = Color(0xFF1E293B),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    ResultRow(
-                                        label = "इस महीने भरने वाली किस्त:",
-                                        value = BcCalculator.formatRupees(netPayableInstallment),
-                                        valueColor = Color(0xFFFFD700),
-                                        isBold = true
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    ResultRow(
-                                        label = "आखिरी तारीख (Last Due Date):",
-                                        value = "हर महीने की 10 तारीख",
-                                        valueColor = Color(0xFFF87171),
-                                        isBold = true
-                                    )
-                                }
-                            }
+                            ResultRow("कुल कमेटी राशि:", BcCalculator.formatRupees(totalPool), Color.White)
+                            ResultRow("फाइनल बोली (छूट):", BcCalculator.formatRupees(highestBid), Color(0xFFFBBF24))
+                            ResultRow("हर मेंबर का फायदा:", "+ ${BcCalculator.formatRupees(dividend)}", Color(0xFF4ADE80))
+                            ResultRow("इस महीने की किस्त:", BcCalculator.formatRupees(netInstallment), Color(0xFFFFD700), true)
+                            ResultRow("आखिरी तारीख:", "हर महीने की 10 तारीख", Color(0xFFF87171), true)
                         }
                     }
                 }
@@ -312,67 +179,34 @@ fun LiveBiddingScreen(
 
             items(roundBids, key = { it.id }) { msg ->
                 val isMine = msg.senderUid == currentUserId
-                val isBidMsg = msg.type == "bid" || msg.amount > 0L
+                val isBid = msg.type == "bid" || msg.amount > 0L
                 val timeStr = remember(msg.createdAt) {
-                    msg.createdAt?.toDate()?.let {
-                        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(it)
-                    } ?: ""
+                    msg.createdAt?.toDate()?.let { SimpleDateFormat("hh:mm a", Locale.getDefault()).format(it) } ?: ""
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start) {
                     Surface(
                         color = when {
-                            isBidMsg && isMine -> Color(0xFFDCF8C6)
-                            isBidMsg -> Color.White
+                            isBid && isMine -> Color(0xFFDCF8C6)
+                            isBid -> Color.White
                             isMine -> Color(0xFFE7FFDB)
                             else -> Color.White
                         },
-                        shape = RoundedCornerShape(
-                            topStart = 14.dp,
-                            topEnd = 14.dp,
-                            bottomStart = if (isMine) 14.dp else 4.dp,
-                            bottomEnd = if (isMine) 4.dp else 14.dp
-                        ),
+                        shape = RoundedCornerShape(14.dp),
                         shadowElevation = 2.dp,
-                        border = if (isBidMsg) BorderStroke(1.dp, Color(0xFF16A34A)) else null,
+                        border = if (isBid) BorderStroke(1.dp, Color(0xFF16A34A)) else null,
                         modifier = Modifier.widthIn(max = 290.dp)
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                             if (!isMine && msg.senderName.isNotBlank()) {
-                                Text(
-                                    text = msg.senderName,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF075E54)
-                                )
+                                Text(msg.senderName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF075E54))
                             }
-                            if (isBidMsg) {
-                                Text(
-                                    text = "💰 बोली: ${BcCalculator.formatRupees(msg.amount)}",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF15803D)
-                                )
+                            if (isBid) {
+                                Text("💰 बोली: ${BcCalculator.formatRupees(msg.amount)}", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF15803D))
                             } else {
-                                Text(
-                                    text = msg.message,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF111827)
-                                )
+                                Text(msg.message, fontSize = 14.sp, color = Color(0xFF111827))
                             }
                             if (timeStr.isNotBlank()) {
-                                Text(
-                                    text = timeStr,
-                                    fontSize = 10.sp,
-                                    color = Color.Gray,
-                                    textAlign = TextAlign.End,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 2.dp)
-                                )
+                                Text(timeStr, fontSize = 10.sp, color = Color.Gray, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth())
                             }
                         }
                     }
@@ -380,56 +214,79 @@ fun LiveBiddingScreen(
             }
         }
 
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .navigationBarsPadding()
-        ) {
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth().imePadding().navigationBarsPadding()) {
             if (committee.isLive) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val increments = listOf(500L, 1000L, 2000L, 5000L)
-                        items(increments) { inc ->
-                            val target = (committee.currentHighestBid + inc)
-                            SuggestionChip(
-                                onClick = {
-                                    if (target > committee.currentHighestBid) {
-                                        onPlaceBid(target)
-                                    }
-                                },
-                                label = {
-                                    Text(
-                                        text = "+${BcCalculator.formatRupees(inc)}",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            )
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(listOf(500L, 1000L, 2000L, 5000L)) { inc ->
+                            val target = committee.currentHighestBid + inc
+                            SuggestionChip(onClick = { if (target > committee.currentHighestBid) onPlaceBid(target) }, label = { Text("+${BcCalculator.formatRupees(inc)}", fontWeight = FontWeight.Bold) })
                         }
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
-                            value = bidAmountInput,
-                            onValueChange = { bidAmountInput = it.filter { ch -> ch.isDigit() } },
+                            value = bidInput,
+                            onValueChange = { bidInput = it.filter { ch -> ch.isDigit() } },
                             label = { Text("बोली राशि (₹)") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("bid_amount_input")
+                            modifier = Modifier.weight(1f)
                         )
                         Button(
-             
+                            onClick = { val amt = bidInput.toLongOrNull() ?: 0L; if (amt > committee.currentHighestBid) onPlaceBid(amt) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A), contentColor = Color.White),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(54.dp)
+                        ) {
+                            Icon(Icons.Filled.Gavel, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("बोली लगाएं", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(value = chatInput, onValueChange = { chatInput = it }, placeholder = { Text("संदेश लिखें...") }, singleLine = true, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { if (chatInput.isNotBlank()) { onSendChat(chatInput.trim()); chatInput = "" } }) {
+                            Icon(Icons.AutoMirrored.Filled.Send, "भेजें", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            } else if (isAdmin) {
+                Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = minsInput,
+                        onValueChange = { minsInput = it.filter { ch -> ch.isDigit() }.take(2) },
+                        label = { Text("मिनट") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(100.dp)
+                    )
+                    Button(
+                        onClick = { onStartLiveBidding((minsInput.toLongOrNull() ?: 5L).coerceIn(1L, 60L)) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A), contentColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(54.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("नई बोली शुरू करें", fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(value = chatInput, onValueChange = { chatInput = it }, placeholder = { Text("चैट संदेश लिखें...") }, singleLine = true, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { if (chatInput.isNotBlank()) { onSendChat(chatInput.trim()); chatInput = "" } }) {
+                        Icon(Icons.AutoMirrored.Filled.Send, "भेजें", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultRow(label: String, value: String, valueColor: Color, isBold: Boolean = false) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, fontSize = if (isBold) 13.sp else 12.sp, fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal, color = Color(0xFFCBD5E1))
+        Text(value, fontSize = if (isBold) 14.sp else 13.sp, fontWeight = FontWeight.Bold, color = valueColor)
+    }
+}
