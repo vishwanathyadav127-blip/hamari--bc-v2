@@ -57,8 +57,8 @@ fun MembersAndInstallmentsScreen(
     var newMobile by remember { mutableStateOf("") }
 
     // Admin Due Date & Late Fine Rules from Firestore
-    var dueDayOfMonth by remember { mutableIntStateOf(10) }
-    var dailyLateFine by remember { mutableLongStateOf(100L) }
+    var dueDayOfMonth by remember { mutableStateOf(10) }
+    var dailyLateFine by remember { mutableStateOf(100L) }
     var paymentTimestamps by remember { mutableStateOf>(emptyMap()) }
 
     LaunchedEffect(Unit) {
@@ -396,4 +396,4 @@ fun MembersAndInstallmentsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                  
+                    Outli
