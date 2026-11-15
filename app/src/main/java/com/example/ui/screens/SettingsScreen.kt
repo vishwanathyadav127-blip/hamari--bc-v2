@@ -9,7 +9,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -70,8 +69,8 @@ fun SettingsScreen(
     val db = remember { Firebase.firestore }
 
     // User Profile States
-    var profileName by remember(userProfile) { mutableStateOf(userProfile?.name ?: "") }
-    var profileMobile by remember(userProfile) { mutableStateOf(userProfile?.mobile ?: "") }
+    var profileName by remember(userProfile) { mutableStateOf(userProfile?.displayName ?: "") }
+    var profileMobile by remember(userProfile) { mutableStateOf(userProfile?.phoneNumber ?: "") }
 
     // Admin: Add Approved Member States
     var newMemberName by remember { mutableStateOf("") }
@@ -88,7 +87,7 @@ fun SettingsScreen(
     // Admin: Committee Basic Settings
     var committeeName by remember(committee) { mutableStateOf(committee?.name ?: "कृषिव ग्रुप BC") }
     var totalPoolText by remember(committee) {
-        mutableStateOf((committee?.totalAmount ?: 100000L).toString())
+        mutableStateOf((committee?.totalBcAmount ?: 100000L).toString())
     }
     var totalMembersText by remember(committee) {
         mutableStateOf((committee?.totalMembers ?: 10).toString())
@@ -394,4 +393,5 @@ fun SettingsScreen(
                                             SetOptions.merge()
                                         ).await()
                                         Toast.makeText(context, "ड्यू डेट (तारीख $day) और लेट फाइन (₹$fine) सेव हो गया!", Toast.LENGTH_SHORT).show()
-                                   
+                                    } catch (e: Exception) {
+      
