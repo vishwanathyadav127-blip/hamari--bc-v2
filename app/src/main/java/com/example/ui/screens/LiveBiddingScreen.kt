@@ -35,7 +35,6 @@ import com.example.model.BidMessage
 import com.example.model.Committee
 import com.example.ui.theme.LocalBcExtraColors
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -45,7 +44,7 @@ fun LiveBiddingScreen(
     currentUserId: String,
     isAdmin: Boolean,
     countdownRemainingSeconds: Long,
-    onStartRound: (Int) -> Unit,
+    onStartLiveBidding: (Int) -> Unit,
     onPlaceBid: (Long) -> Unit,
     onSendChat: (String) -> Unit,
     onEndAndDeclareWinner: () -> Unit,
@@ -55,8 +54,8 @@ fun LiveBiddingScreen(
 
     val extra = LocalBcExtraColors.current
     val listState = rememberLazyListState()
-    val roundBids = remember(bids, committee.currentRound) {
-        bids.filter { it.roundNumber == committee.currentRound }
+    val roundBids = remember(bids, committee.roundNumber) {
+        bids.filter { it.roundNumber == committee.roundNumber }
     }
 
     var bidAmountInput by remember(committee.currentHighestBid) {
@@ -65,7 +64,7 @@ fun LiveBiddingScreen(
     }
     var chatMessageInput by remember { mutableStateOf("") }
     var startMinutesInput by remember(committee.timerMinutes) {
-        mutableStateOf(committee.timerMinutes.coerceAtLeast(1).toString())
+        mutableStateOf(committee.timerMinutes.coerceAtLeast(1L).toString())
     }
 
     LaunchedEffect(roundBids.size) {
@@ -161,9 +160,9 @@ fun LiveBiddingScreen(
                         )
                         Text(
                             text = if (committee.isLive) {
-                                "दौर #${committee.currentRound} • बोली चालू है"
+                                "दौर #${committee.roundNumber} • बोली चालू है"
                             } else {
-                                "दौर #${committee.currentRound} • बोली बंद"
+                                "दौर #${committee.roundNumber} • बोली बंद"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f)
@@ -207,7 +206,7 @@ fun LiveBiddingScreen(
                         ) {
                             Text(
                                 text = if (committee.currentHighestBid > 0L) {
-                                    "ऊँची बोली: ${BcCalculator.formatCurrency(committee.currentHighestBid)}"
+                                    "ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}"
                                 } else {
                                     "पहली बोली लगाएं"
                                 },
@@ -240,7 +239,7 @@ fun LiveBiddingScreen(
                 item {
                     val totalPool = committee.totalBcAmount
                     val highestBid = committee.currentHighestBid
-                    val memberCount = committee.totalMembers.coerceAtLeast(1)
+                    val memberCount = committee.totalMembers.coerceAtLeast(1L)
                     val perMemberDividend = highestBid / memberCount
                     val baseInstallment = totalPool / memberCount
                     val netPayableInstallment = (baseInstallment - perMemberDividend).coerceAtLeast(0L)
@@ -256,7 +255,7 @@ fun LiveBiddingScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "🏆 दौर #${committee.currentRound} बोली परिणाम व हिसाब",
+                                text = "🏆 दौर #${committee.roundNumber} बोली परिणाम व हिसाब",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFFFFD700)
@@ -272,17 +271,17 @@ fun LiveBiddingScreen(
                             }
                             ResultRow(
                                 label = "कुल कमेटी राशि:",
-                                value = BcCalculator.formatCurrency(totalPool),
+                                value = BcCalculator.formatRupees(totalPool),
                                 valueColor = Color.White
                             )
                             ResultRow(
                                 label = "फाइनल बोली (छूट):",
-                                value = BcCalculator.formatCurrency(highestBid),
+                                value = BcCalculator.formatRupees(highestBid),
                                 valueColor = Color(0xFFFBBF24)
                             )
                             ResultRow(
                                 label = "हर मेंबर का फायदा (बचत):",
-                                value = "+ ${BcCalculator.formatCurrency(perMemberDividend)}",
+                                value = "+ ${BcCalculator.formatRupees(perMemberDividend)}",
                                 valueColor = Color(0xFF4ADE80)
                             )
                             Surface(
@@ -293,7 +292,7 @@ fun LiveBiddingScreen(
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     ResultRow(
                                         label = "इस महीने भरने वाली किस्त:",
-                                        value = BcCalculator.formatCurrency(netPayableInstallment),
+                                        value = BcCalculator.formatRupees(netPayableInstallment),
                                         valueColor = Color(0xFFFFD700),
                                         isBold = true
                                     )
@@ -312,9 +311,12 @@ fun LiveBiddingScreen(
             }
 
             items(roundBids, key = { it.id }) { msg ->
-                val isMine = msg.senderId == currentUserId
-                val timeStr = remember(msg.timestamp) {
-                    SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(msg.timestamp))
+                val isMine = msg.senderUid == currentUserId
+                val isBidMsg = msg.type == "bid" || msg.amount > 0L
+                val timeStr = remember(msg.createdAt) {
+                    msg.createdAt?.toDate()?.let {
+                        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(it)
+                    } ?: ""
                 }
 
                 Row(
@@ -323,8 +325,8 @@ fun LiveBiddingScreen(
                 ) {
                     Surface(
                         color = when {
-                            msg.isBid && isMine -> Color(0xFFDCF8C6)
-                            msg.isBid -> Color.White
+                            isBidMsg && isMine -> Color(0xFFDCF8C6)
+                            isBidMsg -> Color.White
                             isMine -> extra.whatsappBubbleOutgoing
                             else -> extra.whatsappBubbleIncoming
                         },
@@ -335,11 +337,11 @@ fun LiveBiddingScreen(
                             bottomEnd = if (isMine) 4.dp else 14.dp
                         ),
                         shadowElevation = 2.dp,
-                        border = if (msg.isBid) BorderStroke(1.dp, Color(0xFF16A34A)) else null,
+                        border = if (isBidMsg) BorderStroke(1.dp, Color(0xFF16A34A)) else null,
                         modifier = Modifier.widthIn(max = 290.dp)
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            if (!isMine) {
+                            if (!isMine && msg.senderName.isNotBlank()) {
                                 Text(
                                     text = msg.senderName,
                                     fontSize = 12.sp,
@@ -347,9 +349,9 @@ fun LiveBiddingScreen(
                                     color = Color(0xFF075E54)
                                 )
                             }
-                            if (msg.isBid) {
+                            if (isBidMsg) {
                                 Text(
-                                    text = "💰 बोली: ${BcCalculator.formatCurrency(msg.bidAmount)}",
+                                    text = "💰 बोली: ${BcCalculator.formatRupees(msg.amount)}",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF15803D)
@@ -361,15 +363,17 @@ fun LiveBiddingScreen(
                                     color = Color(0xFF111827)
                                 )
                             }
-                            Text(
-                                text = timeStr,
-                                fontSize = 10.sp,
-                                color = Color.Gray,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 2.dp)
-                            )
+                            if (timeStr.isNotBlank()) {
+                                Text(
+                                    text = timeStr,
+                                    fontSize = 10.sp,
+                                    color = Color.Gray,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 2.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -404,7 +408,7 @@ fun LiveBiddingScreen(
                                 },
                                 label = {
                                     Text(
-                                        text = "+${BcCalculator.formatCurrency(inc)}",
+                                        text = "+${BcCalculator.formatRupees(inc)}",
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -496,7 +500,7 @@ fun LiveBiddingScreen(
                     Button(
                         onClick = {
                             val minsVal = (startMinutesInput.toIntOrNull() ?: 5).coerceIn(1, 60)
-                            onStartRound(minsVal)
+                            onStartLiveBidding(minsVal)
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF16A34A),
