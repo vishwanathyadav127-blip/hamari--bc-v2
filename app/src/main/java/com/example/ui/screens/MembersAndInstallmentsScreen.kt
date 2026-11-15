@@ -56,7 +56,8 @@ fun MembersAndInstallmentsScreen(
 
     var dueDayOfMonth by remember { mutableStateOf(10) }
     var dailyLateFine by remember { mutableStateOf(100L) }
-    var paymentTimestamps by remember { mutableStateOf>(emptyMap()) }
+    var paymentTimestamps by remember { mutableStateOf(mapOf("" to 0L)) }
+    
 
     LaunchedEffect(Unit) {
         try {
