@@ -44,7 +44,7 @@ fun LiveBiddingScreen(
     currentUserId: String,
     isAdmin: Boolean,
     countdownRemainingSeconds: Long,
-    onStartLiveBidding: (Int) -> Unit,
+    onStartLiveBidding: (Long) -> Unit,
     onPlaceBid: (Long) -> Unit,
     onSendChat: (String) -> Unit,
     onEndAndDeclareWinner: () -> Unit,
@@ -327,8 +327,8 @@ fun LiveBiddingScreen(
                         color = when {
                             isBidMsg && isMine -> Color(0xFFDCF8C6)
                             isBidMsg -> Color.White
-                            isMine -> extra.whatsappBubbleOutgoing
-                            else -> extra.whatsappBubbleIncoming
+                            isMine -> Color(0xFFE7FFDB)
+                            else -> Color.White
                         },
                         shape = RoundedCornerShape(
                             topStart = 14.dp,
@@ -432,149 +432,4 @@ fun LiveBiddingScreen(
                                 .testTag("bid_amount_input")
                         )
                         Button(
-                            onClick = {
-                                val amt = bidAmountInput.toLongOrNull() ?: 0L
-                                if (amt > committee.currentHighestBid) {
-                                    onPlaceBid(amt)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF16A34A),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .height(54.dp)
-                                .testTag("place_bid_button")
-                        ) {
-                            Icon(Icons.Filled.Gavel, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("बोली लगाएं", fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = chatMessageInput,
-                            onValueChange = { chatMessageInput = it },
-                            placeholder = { Text("ग्रुप में संदेश लिखें...") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = {
-                                if (chatMessageInput.isNotBlank()) {
-                                    onSendChat(chatMessageInput.trim())
-                                    chatMessageInput = ""
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "भेजें",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            } else if (isAdmin) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = startMinutesInput,
-                        onValueChange = { startMinutesInput = it.filter { ch -> ch.isDigit() }.take(2) },
-                        label = { Text("टाइमर (मिनट)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.width(120.dp)
-                    )
-                    Button(
-                        onClick = {
-                            val minsVal = (startMinutesInput.toIntOrNull() ?: 5).coerceIn(1, 60)
-                            onStartLiveBidding(minsVal)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF16A34A),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp)
-                            .testTag("start_bidding_button")
-                    ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("नई बोली शुरू करें", fontWeight = FontWeight.ExtraBold)
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = chatMessageInput,
-                        onValueChange = { chatMessageInput = it },
-                        placeholder = { Text("चैट संदेश लिखें...") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = {
-                            if (chatMessageInput.isNotBlank()) {
-                                onSendChat(chatMessageInput.trim())
-                                chatMessageInput = ""
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "भेजें",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResultRow(
-    label: String,
-    value: String,
-    valueColor: Color,
-    isBold: Boolean = false
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontSize = if (isBold) 13.sp else 12.sp,
-            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-            color = Color(0xFFCBD5E1)
-        )
-        Text(
-            text = value,
-            fontSize = if (isBold) 14.sp else 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = valueColor
-        )
-    }
-}
+             
