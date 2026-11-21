@@ -387,3 +387,239 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = dailyFine,
                             onValueChange = { dailyFine = it.filter { ch -> ch.isDigit() }.take
+                                
+                            label = { Text("लेट फाइन (₹/दिन)") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("100", "200", "500").forEach { p ->
+                            FilterChip(selected = dailyFine == p, onClick = { dailyFine = p }, label = { Text("₹$p/दिन") })
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            val d = (dueDay.toLongOrNull() ?: 10L).coerceIn(1L, 28L)
+                            val f = (dailyFine.toLongOrNull() ?: 100L).coerceAtLeast(0L)
+                            val s1 = (stage1AlertSec.toLongOrNull() ?: 15L).coerceIn(5L, 120L)
+                            val s2 = (stage2BidSec.toLongOrNull() ?: 30L).coerceIn(10L, 300L)
+                            isSavingRules = true
+                            scope.launch {
+                                try {
+                                    db.collection("group_settings").document("rules")
+                                        .set(
+                                            mapOf(
+                                                "dueDayOfMonth" to d,
+                                                "dailyLateFine" to f,
+                                                "stage1AlertSeconds" to s1,
+                                                "stage2BidSeconds" to s2,
+                                                "beepEnabled" to beepEnabled,
+                                                "sirenEnabled" to soundEnabled
+                                            ),
+                                            SetOptions.merge()
+                                        ).await()
+                                    Toast.makeText(context, "टाइमर, सायरन व नियम सेव हो गए!", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {} finally { isSavingRules = false }
+                            }
+                        },
+                        enabled = !isSavingRules,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("टाइमर व नियम सेव करें", fontWeight = FontWeight.Bold) }
+                }
+
+                // 3. Accordion: UPI / QR पेमेंट सेटिंग्स
+                AdminAccordionCard(
+                    title = "3. UPI व QR पेमेंट मैनेजमेंट",
+                    subtitle = "किस्त जमा करने के लिए एडमिन UPI व QR लिंक",
+                    icon = Icons.Default.QrCode2,
+                    accentColor = Color(0xFF16A34A),
+                    expanded = expandedSection == "payment",
+                    onToggle = { expandedSection = if (expandedSection == "payment") "" else "payment" }
+                ) {
+                    OutlinedTextField(
+                        value = adminUpiId,
+                        onValueChange = { adminUpiId = it },
+                        label = { Text("एडमिन UPI ID (जैसे: name@okicici)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = adminUpiName,
+                        onValueChange = { adminUpiName = it },
+                        label = { Text("पेमेंट प्राप्तकर्ता का नाम") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = qrImageUrl,
+                        onValueChange = { qrImageUrl = it },
+                        label = { Text("QR कोड फोटो लिंक / पेमेंट नोट (वैकल्पिक)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = {
+                            isSavingPayment = true
+                            scope.launch {
+                                try {
+                                    db.collection("group_settings").document("rules")
+                                        .set(
+                                            mapOf(
+                                                "adminUpiId" to adminUpiId.trim(),
+                                                "adminUpiName" to adminUpiName.trim(),
+                                                "qrImageUrl" to qrImageUrl.trim()
+                                            ),
+                                            SetOptions.merge()
+                                        ).await()
+                                    Toast.makeText(context, "UPI व QR जानकारी सेव हो गई!", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {} finally { isSavingPayment = false }
+                            }
+                        },
+                        enabled = !isSavingPayment,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("UPI / QR सेटिंग्स सेव करें", fontWeight = FontWeight.Bold) }
+                }
+                  // 4. Accordion: कमेटी की मुख्य सेटिंग्स
+                AdminAccordionCard(
+                    title = "4. कमेटी की मुख्य सेटिंग्स",
+                    subtitle = "BC की कुल रकम, कुल सदस्य व मुख्य समय",
+                    icon = Icons.Default.AccountBalanceWallet,
+                    accentColor = Color(0xFF2563EB),
+                    expanded = expandedSection == "committee",
+                    onToggle = { expandedSection = if (expandedSection == "committee") "" else "committee" }
+                ) {
+                    OutlinedTextField(
+                        value = cName,
+                        onValueChange = { cName = it },
+                        label = { Text("कमेटी का नाम") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = cPool,
+                            onValueChange = { cPool = it.filter { ch -> ch.isDigit() } },
+                            label = { Text("कुल BC राशि") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1.2f)
+                        )
+                        OutlinedTextField(
+                            value = cMembers,
+                            onValueChange = { cMembers = it.filter { ch -> ch.isDigit() } },
+                            label = { Text("सदस्य") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(0.8f)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = cTimer,
+                        onValueChange = { cTimer = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("कुल बोली सत्र समय (मिनट)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = {
+                            onSaveCommitteeSettings(
+                                cName.trim().ifBlank { "कृषिव ग्रुप BC" },
+                                cPool.toLongOrNull() ?: 100000L,
+                                (cMembers.toLongOrNull() ?: 10L).coerceAtLeast(1L),
+                                (cTimer.toLongOrNull() ?: 5L).coerceAtLeast(1L),
+                                committee?.scheduledAtMillis ?: 0L,
+                                committee?.winnerSloganTemplate ?: Committee.DEFAULT_SLOGAN_TEMPLATE,
+                                committee?.apkDownloadUrl ?: Committee.DEFAULT_APK_URL
+                            )
+                            Toast.makeText(context, "कमेटी सेटिंग्स सेव", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("कमेटी सेटिंग्स सेव करें", fontWeight = FontWeight.Bold) }
+                }
+            }
+
+            // मेरी प्रोफाइल
+            Card(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("मेरी प्रोफाइल", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(value = profileName, onValueChange = { profileName = it }, label = { Text("आपका नाम") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = profileMobile, onValueChange = { profileMobile = it.filter { ch -> ch.isDigit() }.take(10) }, label = { Text("मोबाइल नंबर") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                    Button(onClick = { onUpdateProfile(profileName.trim(), profileMobile.trim()); Toast.makeText(context, "प्रोफाइल अपडेट", Toast.LENGTH_SHORT).show() }, modifier = Modifier.fillMaxWidth()) { Text("प्रोफाइल सेव करें") }
+                }
+            }
+
+            // ऐप थीम
+            Card(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ऐप थीम", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    AppThemeMode.entries.forEach { mode ->
+                        Row(modifier = Modifier.fillMaxWidth().clickable { onSelectTheme(mode) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = themeMode == mode, onClick = { onSelectTheme(mode) })
+                            Spacer(Modifier.width(8.dp))
+                            Text(mode.labelHindi)
+                        }
+                    }
+                }
+            }
+
+            // लॉगआउट बटन
+            OutlinedButton(
+                onClick = onSignOut,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                border = BorderStroke(1.dp, Color(0xFFDC2626)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Logout, null)
+                Spacer(Modifier.width(8.dp))
+                Text("लॉगआउट करें", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminAccordionCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accentColor: Color,
+    isDarkHeader: Boolean = false,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isDarkHeader) Color(0xFF0F172A) else Color.Transparent)
+                    .clickable { onToggle() }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, contentDescription = null, tint = accentColor)
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (isDarkHeader) Color(0xFFFFD700) else Color.Unspecified)
+                    Text(subtitle, fontSize = 12.sp, color = if (isDarkHeader) Color(0xFF94A3B8) else Color.Gray)
+                }
+                Icon(imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = if (isDarkHeader) Color(0xFFFFD700) else Color.Gray)
+            }
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+            }
+        }
+    }
+}
+
