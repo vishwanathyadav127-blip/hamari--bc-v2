@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -15,9 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +33,10 @@ import com.example.model.BcCalculator
 import com.example.model.BidMessage
 import com.example.model.Committee
 import com.example.ui.theme.LocalBcExtraColors
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -52,6 +56,8 @@ fun LiveBiddingScreen(
     BackHandler(onBack = onBack)
     val extra = LocalBcExtraColors.current
     val listState = rememberLazyListState()
+    val db = remember { Firebase.firestore }
+
     val roundBids = remember(bids, committee.roundNumber) {
         bids.filter { it.roundNumber == committee.roundNumber }
     }
@@ -63,8 +69,76 @@ fun LiveBiddingScreen(
         mutableStateOf(committee.timerMinutes.coerceAtLeast(1L).toString())
     }
 
+    // Firebase से दो-चरणीय टाइमर, बीप व ड्यू डेट नियम लोड करें
+    var stage1AlertSec by remember { mutableStateOf(15) }
+    var stage2BidSec by remember { mutableStateOf(30) }
+    var beepEnabled by remember { mutableStateOf(true) }
+    var dueDayOfMonth by remember { mutableStateOf(10) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val doc = db.collection("group_settings").document("rules").get().await()
+            if (doc.exists()) {
+                stage1AlertSec = (doc.getLong("stage1AlertSeconds") ?: 15L).toInt().coerceIn(5, 120)
+                stage2BidSec = (doc.getLong("stage2BidSeconds") ?: 30L).toInt().coerceIn(10, 300)
+                beepEnabled = doc.getBoolean("beepEnabled") ?: true
+                dueDayOfMonth = (doc.getLong("dueDayOfMonth") ?: 10L).toInt().coerceIn(1, 28)
+            }
+        } catch (_: Exception) {}
+    }
+
+    // बीप साउंड जनरेटर (सुरक्षित)
+    val toneGen = remember {
+        try {
+            ToneGenerator(AudioManager.STREAM_ALARM, 85)
+        } catch (_: Exception) {
+            null
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                toneGen?.release()
+            } catch (_: Exception) {}
+        }
+    }
+
+    // दो-चरणीय (2-Stage) काउंटडाउन लॉजिक
+    val isStage2 = committee.isLive && committee.currentHighestBid > 0L
+    var stageSecondsLeft by remember(committee.isLive, isStage2, committee.currentHighestBid, stage1AlertSec, stage2BidSec) {
+        mutableStateOf(if (isStage2) stage2BidSec else stage1AlertSec)
+    }
+
+    // नई बोली आते ही बीप बजाएं और लिस्ट स्क्रॉल करें
     LaunchedEffect(roundBids.size) {
-        if (roundBids.isNotEmpty()) listState.animateScrollToItem(roundBids.size - 1)
+        if (roundBids.isNotEmpty()) {
+            listState.animateScrollToItem(roundBids.size - 1)
+            if (committee.isLive && beepEnabled) {
+                try {
+                    toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP2, 180)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    // सेकंड-दर-सेकंड टाइमर और आखिरी 5 सेकंड बीप अलर्ट
+    LaunchedEffect(committee.isLive, isStage2, committee.currentHighestBid) {
+        if (committee.isLive) {
+            while (stageSecondsLeft > 0) {
+                delay(1000L)
+                stageSecondsLeft -= 1
+                if (beepEnabled && stageSecondsLeft in 1..5) {
+                    try {
+                        toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP, 140)
+                    } catch (_: Exception) {}
+                }
+            }
+            if (stageSecondsLeft == 0 && beepEnabled) {
+                try {
+                    toneGen?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 400)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     val mins = (countdownRemainingSeconds.coerceAtLeast(0L)) / 60
@@ -99,9 +173,17 @@ fun LiveBiddingScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(committee.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Text(
-                            text = if (committee.isLive) "दौर #${committee.roundNumber} • बोली चालू है" else "दौर #${committee.roundNumber} • बोली बंद",
+                            text = if (committee.isLive) "दौर #${committee.roundNumber} • लाइव बोली चालू" else "दौर #${committee.roundNumber} • बोली बंद",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                    // बीप ऑन/ऑफ टॉगल बटन
+                    IconButton(onClick = { beepEnabled = !beepEnabled }) {
+                        Icon(
+                            imageVector = if (beepEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            contentDescription = "बीप कंट्रोल",
+                            tint = if (beepEnabled) Color(0xFFFFD700) else Color.White.copy(alpha = 0.5f)
                         )
                     }
                     if (isAdmin && committee.isLive) {
@@ -116,24 +198,53 @@ fun LiveBiddingScreen(
                         }
                     }
                 }
+
+                // दो-चरणीय (Two-Stage) लाइव स्टेटस और टाइमर पट्टी
                 if (committee.isLive) {
                     Surface(
-                        color = Color.Black.copy(alpha = 0.25f),
+                        color = if (isStage2) Color(0xFF7F1D1D) else Color(0xFF1E3A8A),
                         shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.6f)),
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (committee.currentHighestBid > 0L) "ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}" else "पहली बोली लगाएं",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD700)
-                            )
-                            if (committee.currentHighestBidderName.isNotBlank()) {
-                                Text("लीडर: ${committee.currentHighestBidderName}", fontSize = 12.sp, color = Color.White)
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isStage2) "🔥 चरण 2: मुख्य लाइव बोली" else "🔔 चरण 1: बोली अलर्ट (पहली बोली लगाएं)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFFFD700)
+                                )
+                                Surface(
+                                    color = if (stageSecondsLeft <= 5) Color(0xFFDC2626) else Color.Black.copy(alpha = 0.35f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = if (stageSecondsLeft > 0) "⏱ ${stageSecondsLeft}s" else "⏰ समय पूरा!",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (committee.currentHighestBid > 0L) "ऊँची बोली: ${BcCalculator.formatRupees(committee.currentHighestBid)}" else "प्रारंभिक बोली: ₹0",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                if (committee.currentHighestBidderName.isNotBlank()) {
+                                    Text("लीडर: ${committee.currentHighestBidderName}", fontSize = 12.sp, color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -152,6 +263,7 @@ fun LiveBiddingScreen(
                     val totalPool = committee.totalBcAmount
                     val highestBid = committee.currentHighestBid
                     val memberCount = committee.totalMembers.coerceAtLeast(1L)
+                    val winnerPayout = (totalPool - highestBid).coerceAtLeast(0L)
                     val dividend = highestBid / memberCount
                     val netInstallment = ((totalPool / memberCount) - dividend).coerceAtLeast(0L)
 
@@ -165,14 +277,34 @@ fun LiveBiddingScreen(
                             Text("🏆 दौर #${committee.roundNumber} बोली परिणाम", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFFD700))
                             HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
                             if (committee.currentHighestBidderName.isNotBlank()) {
-                                ResultRow("बोली विजेता:", committee.currentHighestBidderName, Color.White)
+                                ResultRow("बोली विजेता:", committee.currentHighestBidderName, Color.White, true)
                             }
                             ResultRow("कुल कमेटी राशि:", BcCalculator.formatRupees(totalPool), Color.White)
                             ResultRow("फाइनल बोली (छूट):", BcCalculator.formatRupees(highestBid), Color(0xFFFBBF24))
+                            ResultRow("विजेता को मिलने वाली राशि:", BcCalculator.formatRupees(winnerPayout), Color(0xFF38BDF8), true)
                             ResultRow("हर मेंबर का फायदा:", "+ ${BcCalculator.formatRupees(dividend)}", Color(0xFF4ADE80))
                             ResultRow("इस महीने की किस्त:", BcCalculator.formatRupees(netInstallment), Color(0xFFFFD700), true)
-                            ResultRow("आखिरी तारीख:", "हर महीने की 10 तारीख", Color(0xFFF87171), true)
+                            ResultRow("आखिरी तारीख:", "हर महीने की $dueDayOfMonth तारीख", Color(0xFFF87171), true)
                         }
+                    }
+                }
+            }
+
+            if (roundBids.isEmpty() && committee.isLive) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "🔔 लाइव बोली शुरू हो चुकी है! नीचे से पहली बोली लगाएं या चैट में संदेश भेजें।",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0F172A),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(14.dp)
+                        )
                     }
                 }
             }
@@ -220,7 +352,10 @@ fun LiveBiddingScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(listOf(500L, 1000L, 2000L, 5000L)) { inc ->
                             val target = committee.currentHighestBid + inc
-                            SuggestionChip(onClick = { if (target > committee.currentHighestBid) onPlaceBid(target) }, label = { Text("+${BcCalculator.formatRupees(inc)}", fontWeight = FontWeight.Bold) })
+                            SuggestionChip(
+                                onClick = { if (target > committee.currentHighestBid) onPlaceBid(target) },
+                                label = { Text("+${BcCalculator.formatRupees(inc)}", fontWeight = FontWeight.Bold) }
+                            )
                         }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
