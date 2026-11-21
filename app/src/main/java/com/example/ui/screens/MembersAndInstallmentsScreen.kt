@@ -475,16 +475,18 @@ fun MembersAndInstallmentsScreen(
                                 ) {
                                     Text("दौर #${round.roundNumber}", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color(0xFFD97706))
                                     Text(
-                                        dateFormatter.format(Date(round.timestamp)),
+                                        dateFormatter.format(round.createdAt?.toDate() ?: java.util.Date()),
+                                        
                                         fontSize = 11.sp,
                                         color = Color.Gray
                                     )
                                 }
                                 Text("🏆 विजेता: ${round.winnerName}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("बोली राशि: ${BcCalculator.formatRupees(round.bidAmount)}", fontSize = 12.sp, color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
-                                    Text("विजेता को मिले: ${BcCalculator.formatRupees(round.payoutAmount)}", fontSize = 12.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
-                                }
+                                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("बोली राशि: ${BcCalculator.formatRupees(round.winningBid)}", fontSize = 12.sp, color = Color(0xFFDC2626))
+                        Text("विजेता को मिले: ${BcCalculator.formatRupees(round.netPayableToWinner)}", fontSize = 12.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
+                    }
+
                             }
                         }
                     }
